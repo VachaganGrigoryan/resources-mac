@@ -28,6 +28,7 @@ pub mod color {
     pub const RX: Color32 = Color32::from_rgb(0x34, 0xAB, 0xAF);
     pub const TX: Color32 = Color32::from_rgb(0x20, 0x81, 0x8F);
     pub const BATTERY: Color32 = Color32::from_rgb(0x33, 0xD1, 0x7A);
+    pub const POWER: Color32 = Color32::from_rgb(0x26, 0xA2, 0x69);
 }
 
 /// Surface colours for the current light/dark mode.

@@ -34,6 +34,21 @@ pub fn fmt_rate(bps: f64) -> String {
     format!("{}/s", fmt_bytes(bps as u64))
 }
 
+/// Current rate plus the highest one still on the graph: `"8.37 MB/s · Highest: 247.76 MB/s"`.
+pub fn fmt_rate_highest(bps: f64, hist: &History) -> String {
+    format!("{} · Highest: {}", fmt_rate(bps), fmt_rate(hist.max()))
+}
+
+/// `"5.05 GB / 14.47 GB · 35 %"`.
+pub fn fmt_used(used: u64, total: u64) -> String {
+    let pct = if total == 0 {
+        0.0
+    } else {
+        used as f64 / total as f64 * 100.0
+    };
+    format!("{} / {} · {pct:.0} %", fmt_bytes(used), fmt_bytes(total))
+}
+
 /// Paints a live graph over the last [`HISTORY_LEN`] seconds, newest on the right, the way
 /// upstream's `ResGraph` does: tinted background, 40% area fill, full-colour outline.
 /// `y_max: None` scales to the largest visible value.
@@ -211,27 +226,54 @@ fn card_frame(ui: &Ui, margin: i8) -> Frame {
         .inner_margin(margin)
 }
 
-/// Boxed list of title/value rows separated by hairlines (upstream `AdwActionRow`s).
-pub fn property_rows(ui: &mut Ui, rows: &[(&str, String)]) {
+/// One section of a [`boxed_list`].
+pub enum Item<'a> {
+    /// 120 px graph with a small dimmed caption and the current value under it.
+    Graph {
+        caption: &'a str,
+        value: String,
+        series: &'a [Series<'a>],
+        y_max: Option<f64>,
+    },
+    /// Small dimmed title with the value under it (upstream `AdwActionRow` with subtitle).
+    Row { title: &'a str, value: String },
+}
+
+/// One card holding graphs and rows separated by hairlines, as upstream's Usage and
+/// Properties groups.
+pub fn boxed_list(ui: &mut Ui, items: &[Item]) {
     let border = palette(ui.visuals()).border;
     card_frame(ui, 0).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.spacing_mut().item_spacing.y = 0.0;
-        for (i, (title, value)) in rows.iter().enumerate() {
+        for (i, item) in items.iter().enumerate() {
             if i > 0 {
                 let y = ui.cursor().top();
                 ui.painter()
                     .hline(ui.max_rect().x_range(), y, Stroke::new(1.0, border));
             }
             Frame::new()
-                .inner_margin(egui::Margin::symmetric(14, 12))
+                .inner_margin(egui::Margin::symmetric(14, 10))
                 .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(*title);
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.add(egui::Label::new(RichText::new(value).weak()).truncate());
-                        });
-                    });
+                    ui.set_width(ui.available_width());
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    match item {
+                        Item::Graph {
+                            caption,
+                            value,
+                            series,
+                            y_max,
+                        } => {
+                            graph(ui, series, *y_max, 120.0, 8.0);
+                            ui.add_space(8.0);
+                            ui.label(RichText::new(*caption).small().weak());
+                            ui.label(value);
+                        }
+                        Item::Row { title, value } => {
+                            ui.label(RichText::new(*title).small().weak());
+                            ui.add(egui::Label::new(value.as_str()).truncate());
+                        }
+                    }
                 });
         }
     });

@@ -2,18 +2,19 @@ use egui::Ui;
 
 use crate::sampler::State;
 use crate::theme::color;
-use crate::widgets::{graph_box, group, property_rows};
+use crate::widgets::{Item, boxed_list, graph_box, group};
 
 pub fn show(ui: &mut Ui, s: &State) {
     group(ui, "Usage", |ui| {
         let total = s.cpu_total.last().unwrap_or(0.0);
-        graph_box(
+        boxed_list(
             ui,
-            "Total usage",
-            &format!("{total:.0} %"),
-            &[(&s.cpu_total, color::CPU)],
-            Some(100.0),
-            120.0,
+            &[Item::Graph {
+                caption: "Total Usage",
+                value: format!("{total:.0} %"),
+                series: &[(&s.cpu_total, color::CPU)],
+                y_max: Some(100.0),
+            }],
         );
         ui.add_space(4.0);
         ui.label(
@@ -39,11 +40,17 @@ pub fn show(ui: &mut Ui, s: &State) {
         }
     });
     group(ui, "Properties", |ui| {
-        property_rows(
+        boxed_list(
             ui,
             &[
-                ("Model", s.cpu_model.clone()),
-                ("Logical Cores", s.cpu_cores.len().to_string()),
+                Item::Row {
+                    title: "Model",
+                    value: s.cpu_model.clone(),
+                },
+                Item::Row {
+                    title: "Logical Cores",
+                    value: s.cpu_cores.len().to_string(),
+                },
             ],
         );
     });

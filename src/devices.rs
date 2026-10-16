@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use crate::icons;
+use crate::sampler::NetStat;
 
 /// Parses `networksetup -listallhardwareports` into device → port name (`"en0" → "Wi-Fi"`).
 pub fn parse_hardware_ports(out: &str) -> HashMap<String, String> {
@@ -19,6 +20,29 @@ pub fn parse_hardware_ports(out: &str) -> HashMap<String, String> {
         }
     }
     map
+}
+
+/// macOS system tunnels (iCloud Private Relay, VPN apps): `utun*`, `ipsec*`, `ppp*` that are
+/// not listed as a hardware port. They are merged into one "VPN Connection" entry.
+pub fn is_tunnel(iface: &str, port: Option<&str>) -> bool {
+    port.is_none()
+        && ["utun", "ipsec", "ppp"]
+            .iter()
+            .any(|t| iface.starts_with(t))
+}
+
+/// Loopback, Apple's peer-to-peer Wi-Fi links and interfaces that never carried traffic
+/// (idle tunnels, bridges) are noise.
+pub fn visible(n: &NetStat) -> bool {
+    n.name != "lo0"
+        && !n.name.starts_with("awdl")
+        && !n.name.starts_with("llw")
+        && n.rx_total + n.tx_total > 0
+}
+
+/// The interface's hardware port, if macOS knows one.
+pub fn port(n: &NetStat) -> Option<&str> {
+    Some(n.port.as_str()).filter(|p| !p.is_empty())
 }
 
 /// Display name and icon for an interface, given its hardware port name if macOS knows one.
@@ -56,6 +80,11 @@ pub fn drive_display_name(total: u64, removable: bool) -> (String, &'static str)
         icons::HARD_DRIVE
     };
     (format!("{v:.0} {} Drive", UNITS[unit]), icon)
+}
+
+/// "59 Wh Battery", like upstream; plain "Battery" when the design capacity is unknown.
+pub fn battery_display_name(design_wh: Option<f32>) -> String {
+    design_wh.map_or_else(|| "Battery".to_owned(), |wh| format!("{wh:.0} Wh Battery"))
 }
 
 #[cfg(test)]
@@ -117,6 +146,23 @@ VLAN Configurations
             net_display_name("gif0", None),
             ("gif0".into(), icons::GLOBE)
         );
+    }
+
+    #[test]
+    fn battery_display_name_uses_design_capacity() {
+        assert_eq!(battery_display_name(Some(59.4)), "59 Wh Battery");
+        assert_eq!(battery_display_name(None), "Battery");
+    }
+
+    #[test]
+    fn is_tunnel_cases() {
+        assert!(is_tunnel("utun3", None));
+        assert!(is_tunnel("ipsec0", None));
+        assert!(is_tunnel("ppp0", None));
+        assert!(!is_tunnel("en0", Some("Wi-Fi")));
+        assert!(!is_tunnel("gif0", None));
+        // A tunnel macOS lists as a hardware port is a real connection, not a system tunnel.
+        assert!(!is_tunnel("utun9", Some("Corporate VPN")));
     }
 
     #[test]

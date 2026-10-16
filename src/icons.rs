@@ -5,6 +5,8 @@ pub const FONT: &[u8] = include_bytes!("../assets/fonts/Phosphor.ttf");
 
 pub const APP_WINDOW: &str = "\u{E5DA}";
 pub const LIST_BULLETS: &str = "\u{E2F2}";
+pub const LIST: &str = "\u{E2F0}";
+pub const GEAR_SIX: &str = "\u{E272}";
 pub const PUZZLE_PIECE: &str = "\u{E596}";
 pub const CPU: &str = "\u{E610}";
 pub const MEMORY: &str = "\u{E9C4}";

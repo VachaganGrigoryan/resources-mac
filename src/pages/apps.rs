@@ -1,13 +1,11 @@
-use std::collections::HashMap;
-
-use egui::{Align, Align2, FontId, Layout, Sense, TextureHandle, TextureOptions, Ui, vec2};
+use egui::{Align, Layout, Sense, Ui};
 use egui_extras::{Column, TableBuilder};
 
 use crate::actions::{Sig, quit_app, signal};
 use crate::icons;
 use crate::sample::AppUsage;
 use crate::sampler::State;
-use crate::table::{BarAction, Confirm, Search, SortCol, action_bar, header};
+use crate::table::{BarAction, Confirm, IconCache, Search, SortCol, action_bar, header};
 use crate::widgets::fmt_bytes;
 
 #[derive(Clone, Copy)]
@@ -23,14 +21,27 @@ const MENU: [(&str, &str, Sig); 3] = [
     ("Continue App", "Continue", Sig::Cont),
 ];
 
-#[derive(Default)]
 pub struct AppsView {
     pub search: Search,
     col: SortCol,
     asc: bool,
     selected: Option<u32>,
     confirm: Confirm<AppAction>,
-    textures: HashMap<u32, TextureHandle>,
+    icons: IconCache,
+}
+
+impl Default for AppsView {
+    /// Upstream lists apps by name, A→Z.
+    fn default() -> Self {
+        Self {
+            search: Search::default(),
+            col: SortCol::Name,
+            asc: true,
+            selected: None,
+            confirm: Confirm::default(),
+            icons: IconCache::default(),
+        }
+    }
 }
 
 impl AppsView {
@@ -50,8 +61,7 @@ impl AppsView {
             };
             if self.asc { ord } else { ord.reverse() }
         });
-        self.textures
-            .retain(|pid, _| s.apps.iter().any(|a| a.app.pid == *pid));
+        self.icons.retain(&s.apps);
 
         // pid 0 is the "System Processes" row: selectable, but nothing to end.
         let selected = self
@@ -79,7 +89,7 @@ impl AppsView {
         }
 
         let (col, asc) = (&mut self.col, &mut self.asc);
-        let (sel, textures) = (&mut self.selected, &mut self.textures);
+        let (sel, cache) = (&mut self.selected, &mut self.icons);
         TableBuilder::new(ui)
             .sense(Sense::click())
             .cell_layout(Layout::left_to_right(Align::Center))
@@ -101,7 +111,12 @@ impl AppsView {
                     let mut clicked = false;
                     row.col(|ui| {
                         ui.add_space(8.0);
-                        app_icon(ui, textures, a);
+                        let glyph = if a.app.pid == 0 {
+                            icons::PUZZLE_PIECE
+                        } else {
+                            icons::APP_WINDOW
+                        };
+                        cache.show(ui, Some(a), glyph, 28.0);
                         ui.add_space(6.0);
                         clicked |= ui
                             .add(
@@ -144,36 +159,4 @@ impl AppsView {
             self.confirm.finish(result);
         }
     }
-}
-
-/// 28 px Dock icon, or a Phosphor glyph in a faint circle (upstream's `.bubble`).
-fn app_icon(ui: &mut Ui, textures: &mut HashMap<u32, TextureHandle>, a: &AppUsage) {
-    let size = vec2(28.0, 28.0);
-    if let Some(img) = &a.app.icon {
-        let tex = textures.entry(a.app.pid).or_insert_with(|| {
-            ui.ctx().load_texture(
-                format!("app-icon-{}", a.app.pid),
-                (**img).clone(),
-                TextureOptions::LINEAR,
-            )
-        });
-        ui.add(egui::Image::new(&*tex).fit_to_exact_size(size));
-        return;
-    }
-    let glyph = if a.app.pid == 0 {
-        icons::PUZZLE_PIECE
-    } else {
-        icons::APP_WINDOW
-    };
-    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
-    let color = ui.visuals().text_color();
-    ui.painter()
-        .circle_filled(rect.center(), 14.0, color.gamma_multiply(0.08));
-    ui.painter().text(
-        rect.center(),
-        Align2::CENTER_CENTER,
-        glyph,
-        FontId::proportional(16.0),
-        color,
-    );
 }

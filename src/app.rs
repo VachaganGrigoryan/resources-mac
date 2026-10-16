@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use egui::{Frame, RichText, Ui};
 
-use crate::devices::{drive_display_name, net_display_name};
+use crate::devices::{self, battery_display_name, drive_display_name, net_display_name};
 use crate::icons;
 use crate::pages;
 use crate::sampler::{NetStat, State};
@@ -26,6 +26,8 @@ pub enum Page {
     Drive(String),
     /// Keyed by interface name (`en0`).
     Network(String),
+    /// All system tunnels merged into one entry.
+    Vpn,
     Battery,
 }
 
@@ -38,7 +40,7 @@ struct Entry<'a> {
 }
 
 fn net_label(n: &NetStat) -> (String, &'static str) {
-    net_display_name(&n.name, Some(n.port.as_str()).filter(|p| !p.is_empty()))
+    net_display_name(&n.name, devices::port(n))
 }
 
 /// Sidebar rows for everything this Mac reports, in upstream's order.
@@ -89,7 +91,11 @@ fn entries(s: &State) -> Vec<Entry<'_>> {
             )),
         });
     }
-    for n in s.nets.iter().filter(|n| pages::network::visible(n)) {
+    let separate = s
+        .nets
+        .iter()
+        .filter(|n| devices::visible(n) && !devices::is_tunnel(&n.name, devices::port(n)));
+    for n in separate {
         let (label, icon) = net_label(n);
         out.push(Entry {
             page: Page::Network(n.name.clone()),
@@ -101,7 +107,18 @@ fn entries(s: &State) -> Vec<Entry<'_>> {
             )),
         });
     }
-    // Several system tunnels all read "VPN Connection"; tell same-named devices apart.
+    if let Some(v) = &s.vpn {
+        out.push(Entry {
+            page: Page::Vpn,
+            icon: icons::SHIELD_CHECK,
+            label: "VPN Connection".into(),
+            graph: Some((
+                vec![(&v.rx_hist, color::NETWORK), (&v.tx_hist, color::TX)],
+                None,
+            )),
+        });
+    }
+    // Two drives of the same size read alike; tell same-named devices apart.
     let labels: Vec<String> = out.iter().map(|e| e.label.clone()).collect();
     for e in &mut out {
         if labels.iter().filter(|l| **l == e.label).count() > 1 {
@@ -115,7 +132,7 @@ fn entries(s: &State) -> Vec<Entry<'_>> {
         out.push(Entry {
             page: Page::Battery,
             icon: icons::BATTERY_HIGH,
-            label: "Battery".into(),
+            label: battery_display_name(b.design_wh),
             graph: Some((vec![(&b.charge_hist, color::BATTERY)], Some(100.0))),
         });
     }
@@ -127,6 +144,7 @@ pub struct App {
     page: Page,
     apps: pages::apps::AppsView,
     procs: pages::processes::ProcView,
+    about: bool,
 }
 
 impl App {
@@ -136,6 +154,7 @@ impl App {
             page: Page::Apps,
             apps: Default::default(),
             procs: Default::default(),
+            about: false,
         }
     }
 
@@ -166,9 +185,17 @@ impl App {
                 .nets
                 .iter()
                 .find(|n| &n.name == name)
-                .map(|n| (net_label(n).0, Some(n.name.clone())))
+                .map(|n| (n.name.clone(), Some(net_label(n).0)))
                 .unwrap_or_default(),
-            Page::Battery => ("Battery".into(), None),
+            Page::Vpn => (s.vpn_members.join(", "), Some("VPN Connection".into())),
+            Page::Battery => s
+                .battery
+                .as_ref()
+                .map(|b| {
+                    let name = battery_display_name(b.design_wh);
+                    (b.model.clone().unwrap_or_else(|| name.clone()), Some(name))
+                })
+                .unwrap_or_default(),
         }
     }
 
@@ -190,7 +217,20 @@ impl App {
             .show(ui, |ui| {
                 // Same baseline as the page header; the traffic lights sit to the left.
                 ui.add_space(6.0);
-                ui.vertical_centered(|ui| ui.label(RichText::new("Resources").strong()));
+                let title = ui
+                    .vertical_centered(|ui| ui.label(RichText::new("Resources").strong()))
+                    .inner
+                    .rect;
+                let at = egui::Rect::from_center_size(
+                    egui::pos2(ui.max_rect().right() - 18.0, title.center().y),
+                    egui::vec2(32.0, 32.0),
+                );
+                let menu = ui.put(at, |ui: &mut Ui| icon_button(ui, icons::LIST, "Main Menu"));
+                egui::Popup::menu(&menu).show(|ui| {
+                    if ui.button("About Resources").clicked() {
+                        self.about = true;
+                    }
+                });
                 ui.add_space(8.0);
                 egui::ScrollArea::vertical()
                     .auto_shrink(false)
@@ -229,6 +269,9 @@ impl App {
                     }
                 }
                 ui.add_space(6.0);
+                if self.about {
+                    self.about = about(ui);
+                }
                 match &self.page {
                     Page::Apps => self.apps.show(ui, &s),
                     Page::Processes => self.procs.show(ui, &s),
@@ -243,6 +286,33 @@ impl App {
                 }
             });
     }
+}
+
+/// About dialog; returns whether it stays open.
+fn about(ui: &Ui) -> bool {
+    let mut open = true;
+    let resp = egui::Modal::new(egui::Id::unique("about")).show(ui.ctx(), |ui| {
+        ui.set_width(320.0);
+        ui.vertical_centered(|ui| {
+            ui.label(RichText::new(icons::CPU).size(40.0).color(color::CPU));
+            ui.label(RichText::new("Resources").size(20.0).strong());
+            ui.label(RichText::new(env!("CARGO_PKG_VERSION")).weak());
+            ui.add_space(8.0);
+            ui.label("A system monitor for macOS, inspired by GNOME Resources.");
+            ui.add_space(8.0);
+            ui.label(RichText::new("github.com/VachaganGrigoryan/resources-mac").small());
+            ui.label(
+                RichText::new("GPL-3.0-or-later · Icons: Phosphor (MIT)")
+                    .small()
+                    .weak(),
+            );
+            ui.add_space(8.0);
+            if ui.button("Close").clicked() {
+                open = false;
+            }
+        });
+    });
+    open && !resp.should_close()
 }
 
 /// Body of a resource page; the device pages look their device up by key.
@@ -262,7 +332,17 @@ fn detail(ui: &mut Ui, page: &Page, s: &State) {
         }
         Page::Network(name) => {
             if let Some(n) = s.nets.iter().find(|n| &n.name == name) {
-                pages::network::show(ui, n);
+                pages::network::show(ui, n, &[]);
+            }
+        }
+        Page::Vpn => {
+            if let Some(v) = &s.vpn {
+                let members: Vec<&NetStat> = s
+                    .nets
+                    .iter()
+                    .filter(|n| s.vpn_members.contains(&n.name))
+                    .collect();
+                pages::network::show(ui, v, &members);
             }
         }
         Page::Battery => {

@@ -1,5 +1,6 @@
 //! Renders every page offscreen with sample data for visual review.
-//! Run: `cargo test --test screenshots -- --ignored`; images land in `target/screenshots/`.
+//! Run: `cargo test --test screenshots -- --ignored`; images land in `docs/screenshots/`
+//! (committed, shown in the README).
 
 use std::sync::{Arc, Mutex};
 
@@ -34,6 +35,15 @@ fn icon(path: &str) -> Option<Arc<egui::ColorImage>> {
         let img = NSWorkspace::sharedWorkspace().iconForFile(&NSString::from_str(path));
         render_icon(&img, 64).map(Arc::new)
     })
+}
+
+fn tunnel(name: &str, rx_total: u64, tx_total: u64) -> NetStat {
+    NetStat {
+        name: name.into(),
+        rx_total,
+        tx_total,
+        ..Default::default()
+    }
 }
 
 fn sample_state() -> State {
@@ -94,16 +104,31 @@ fn sample_state() -> State {
             write_hist: trace(0.0, 2e6, 11),
             ..Default::default()
         }],
-        nets: vec![NetStat {
-            name: "en0".into(),
-            port: "Wi-Fi".into(),
-            rx_bps: 120_000.0,
-            tx_bps: 18_000.0,
-            rx_total: 8_400_000_000,
-            tx_total: 950_000_000,
-            rx_hist: trace(0.0, 3e5, 4),
-            tx_hist: trace(0.0, 6e4, 13),
-        }],
+        nets: vec![
+            NetStat {
+                name: "en0".into(),
+                port: "Wi-Fi".into(),
+                rx_bps: 120_000.0,
+                tx_bps: 18_000.0,
+                rx_total: 8_400_000_000,
+                tx_total: 950_000_000,
+                rx_hist: trace(0.0, 3e5, 4),
+                tx_hist: trace(0.0, 6e4, 13),
+            },
+            tunnel("utun3", 210_000_000, 48_000_000),
+            tunnel("utun4", 2_400_000, 900_000),
+        ],
+        vpn: Some(NetStat {
+            name: "VPN".into(),
+            rx_bps: 3_400.0,
+            tx_bps: 1_100.0,
+            rx_total: 212_400_000,
+            tx_total: 48_900_000,
+            rx_hist: trace(0.0, 4e3, 7),
+            tx_hist: trace(0.0, 1.5e3, 17),
+            ..Default::default()
+        }),
+        vpn_members: vec!["utun3".into(), "utun4".into()],
         procs,
         apps,
         gpu: Some(GpuStat {
@@ -116,7 +141,11 @@ fn sample_state() -> State {
             health: 97.0,
             cycles: Some(123),
             state: "Charging".into(),
+            design_wh: Some(72.4),
+            power_w: 18.6,
+            model: Some("bq40z651".into()),
             charge_hist: trace(78.0, 2.0, 1),
+            power_hist: trace(12.0, 8.0, 5),
         }),
     }
 }
@@ -127,38 +156,47 @@ fn shoot(theme: egui::Theme, name: &str) {
         .with_size([1000.0, 680.0])
         .with_pixels_per_point(2.0)
         .with_theme(theme)
+        .with_render_cursor(false)
         .with_context_setup(move |ctx| {
             resources_mac::theme::apply(ctx);
             ctx.set_theme(theme);
         })
         .wgpu()
         .build_ui_state(|ui, app: &mut App| app.show(ui), App::new(state));
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/screenshots");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/screenshots");
     std::fs::create_dir_all(&dir).unwrap();
-    for page in [
-        "Apps",
-        "Processes",
-        "Processor",
-        "Memory",
-        "995 GB Drive",
-        "Wi-Fi Connection",
+    for (label, slug) in [
+        ("Apps", "apps"),
+        ("Processes", "processes"),
+        ("Processor", "processor"),
+        ("Memory", "memory"),
+        ("GPU", "gpu"),
+        ("995 GB Drive", "drive"),
+        ("Wi-Fi Connection", "network"),
+        ("VPN Connection", "vpn"),
+        ("72 Wh Battery", "battery"),
     ] {
-        h.query_all_by_label(page).next().expect(page).click();
+        // Lower sidebar entries start scrolled out of the 680 px window.
+        h.query_all_by_label(label)
+            .next()
+            .expect(label)
+            .scroll_to_me();
+        h.run();
+        h.query_all_by_label(label).next().expect(label).click();
         h.run();
         let img = h.render().expect("render");
-        let file = format!("{name}-{}.png", page.to_lowercase().replace(' ', "-"));
-        img.save(dir.join(file)).unwrap();
+        img.save(dir.join(format!("{name}-{slug}.png"))).unwrap();
     }
 }
 
 #[test]
-#[ignore = "writes PNGs for manual review"]
+#[ignore = "rewrites docs/screenshots"]
 fn screenshots_light() {
     shoot(egui::Theme::Light, "light");
 }
 
 #[test]
-#[ignore = "writes PNGs for manual review"]
+#[ignore = "rewrites docs/screenshots"]
 fn screenshots_dark() {
     shoot(egui::Theme::Dark, "dark");
 }

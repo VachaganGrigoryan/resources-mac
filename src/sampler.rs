@@ -9,7 +9,7 @@ use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 use crate::collect::apps::{app_icon, running_apps};
 use crate::collect::battery::{BatteryStat, read_battery};
 use crate::collect::gpu::{GpuStat, read_gpu};
-use crate::devices::parse_hardware_ports;
+use crate::devices::{self, parse_hardware_ports};
 use crate::sample::{
     AppUsage, History, ProcInfo, aggregate_apps, rate, rate_elapsed, system_processes,
 };
@@ -59,6 +59,10 @@ pub struct State {
     pub swap_hist: History,
     pub disks: Vec<DiskStat>,
     pub nets: Vec<NetStat>,
+    /// All visible system tunnels summed into one interface; `None` when there are none.
+    pub vpn: Option<NetStat>,
+    /// Interface names merged into `vpn`.
+    pub vpn_members: Vec<String>,
     pub procs: Vec<ProcInfo>,
     pub apps: Vec<AppUsage>,
     /// `None` when this Mac exposes no GPU statistics; the page is then hidden.
@@ -194,6 +198,26 @@ impl Sampler {
         nets.sort_by(|a, b| a.name.cmp(&b.name));
         s.nets = nets;
 
+        let tunnels: Vec<&NetStat> = s
+            .nets
+            .iter()
+            .filter(|n| devices::visible(n) && devices::is_tunnel(&n.name, devices::port(n)))
+            .collect();
+        if tunnels.is_empty() {
+            s.vpn = None;
+        } else {
+            let (rx_bps, tx_bps, rx_total, tx_total) = sum_nets(&tunnels);
+            s.vpn_members = tunnels.iter().map(|n| n.name.clone()).collect();
+            let vpn = s.vpn.get_or_insert_with(|| NetStat {
+                name: "VPN".into(),
+                ..Default::default()
+            });
+            (vpn.rx_bps, vpn.tx_bps, vpn.rx_total, vpn.tx_total) =
+                (rx_bps, tx_bps, rx_total, tx_total);
+            vpn.rx_hist.push(rx_bps);
+            vpn.tx_hist.push(tx_bps);
+        }
+
         s.procs = self
             .sys
             .processes()
@@ -236,17 +260,33 @@ impl Sampler {
         }
 
         match read_battery() {
-            Some((percent, health, cycles, state)) => {
+            Some(r) => {
                 let b = s.battery.get_or_insert_with(BatteryStat::default);
-                b.percent = percent;
-                b.health = health;
-                b.cycles = cycles;
-                b.state = state;
-                b.charge_hist.push(percent as f64);
+                b.percent = r.percent;
+                b.health = r.health;
+                b.cycles = r.cycles;
+                b.state = r.state;
+                b.design_wh = r.design_wh;
+                b.power_w = r.power_w;
+                b.model = r.model;
+                b.charge_hist.push(f64::from(r.percent));
+                b.power_hist.push(f64::from(r.power_w));
             }
             None => s.battery = None,
         }
     }
+}
+
+/// Summed `(rx_bps, tx_bps, rx_total, tx_total)` of several interfaces.
+pub fn sum_nets(nets: &[&NetStat]) -> (f64, f64, u64, u64) {
+    nets.iter().fold((0.0, 0.0, 0, 0), |acc, n| {
+        (
+            acc.0 + n.rx_bps,
+            acc.1 + n.tx_bps,
+            acc.2 + n.rx_total,
+            acc.3 + n.tx_total,
+        )
+    })
 }
 
 /// Device → hardware port names, read once: they only change when hardware is added.

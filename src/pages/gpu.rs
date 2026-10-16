@@ -2,22 +2,35 @@ use egui::Ui;
 
 use crate::collect::gpu::GpuStat;
 use crate::theme::color;
-use crate::widgets::{fmt_bytes, graph_box, group, property_rows};
+use crate::widgets::{Item, boxed_list, fmt_bytes, group};
 
 pub fn show(ui: &mut Ui, g: &GpuStat) {
+    let mem = g.mem_used.map_or_else(|| "Unknown".to_owned(), fmt_bytes);
     group(ui, "Usage", |ui| {
         let util = g.util_hist.last().unwrap_or(0.0);
-        graph_box(
+        boxed_list(
             ui,
-            "GPU Usage",
-            &format!("{util:.0} %"),
-            &[(&g.util_hist, color::GPU)],
-            Some(100.0),
-            120.0,
+            &[
+                Item::Graph {
+                    caption: "Total Usage",
+                    value: format!("{util:.0} %"),
+                    series: &[(&g.util_hist, color::GPU)],
+                    y_max: Some(100.0),
+                },
+                Item::Row {
+                    title: "Video Memory in Use",
+                    value: mem,
+                },
+            ],
         );
     });
     group(ui, "Properties", |ui| {
-        let mem = g.mem_used.map_or_else(|| "Unknown".to_owned(), fmt_bytes);
-        property_rows(ui, &[("Model", g.name.clone()), ("Memory in Use", mem)]);
+        boxed_list(
+            ui,
+            &[Item::Row {
+                title: "Model",
+                value: g.name.clone(),
+            }],
+        );
     });
 }

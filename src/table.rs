@@ -1,6 +1,8 @@
 //! Process list filtering/sorting and the confirm dialog shared by the Apps and Processes pages.
 
-use crate::sample::ProcInfo;
+use std::collections::HashMap;
+
+use crate::sample::{AppUsage, ProcInfo};
 use crate::{icons, widgets};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -161,6 +163,46 @@ pub fn action_bar(
             });
         });
     action
+}
+
+/// Dock icon textures by app pid, shared shape for the Apps and Processes lists.
+#[derive(Default)]
+pub struct IconCache(HashMap<u32, egui::TextureHandle>);
+
+impl IconCache {
+    /// Drops textures of apps that quit.
+    pub fn retain(&mut self, apps: &[AppUsage]) {
+        self.0
+            .retain(|pid, _| apps.iter().any(|a| a.app.pid == *pid));
+    }
+
+    /// `size` px icon for `app`, or `glyph` in a faint circle (upstream's `.bubble`)
+    /// when it has none.
+    pub fn show(&mut self, ui: &mut egui::Ui, app: Option<&AppUsage>, glyph: &str, size: f32) {
+        let side = egui::vec2(size, size);
+        if let Some((a, img)) = app.and_then(|a| Some((a, a.app.icon.as_ref()?))) {
+            let tex = self.0.entry(a.app.pid).or_insert_with(|| {
+                ui.ctx().load_texture(
+                    format!("app-icon-{}", a.app.pid),
+                    (**img).clone(),
+                    egui::TextureOptions::LINEAR,
+                )
+            });
+            ui.add(egui::Image::new(&*tex).fit_to_exact_size(side));
+            return;
+        }
+        let (rect, _) = ui.allocate_exact_size(side, egui::Sense::hover());
+        let color = ui.visuals().text_color();
+        ui.painter()
+            .circle_filled(rect.center(), size / 2.0, color.gamma_multiply(0.08));
+        ui.painter().text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            glyph,
+            egui::FontId::proportional(size * 0.57),
+            color,
+        );
+    }
 }
 
 /// A pending destructive action awaiting confirmation, plus any error from the last attempt.

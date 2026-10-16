@@ -225,14 +225,74 @@ fn battery_page_shown_only_with_battery() {
 #[test]
 fn duplicate_sidebar_names_get_device_suffix() {
     let mut s = State::default();
-    for name in ["utun3", "utun4"] {
-        s.nets.push(resources_mac::sampler::NetStat {
+    for (name, mount) in [("Backup A", "/Volumes/A"), ("Backup B", "/Volumes/B")] {
+        s.disks.push(resources_mac::sampler::DiskStat {
             name: name.into(),
-            rx_total: 10,
+            mount: mount.into(),
+            total: 1_000_000_000_000,
             ..Default::default()
         });
     }
     let h = harness(s);
-    h.get_by_label("VPN Connection (utun3)");
-    h.get_by_label("VPN Connection (utun4)");
+    h.get_by_label("1 TB Drive (/Volumes/A)");
+    h.get_by_label("1 TB Drive (/Volumes/B)");
+}
+
+#[test]
+fn tunnels_merge_into_one_vpn_entry() {
+    let net = |name: &str, port: &str| resources_mac::sampler::NetStat {
+        name: name.into(),
+        port: port.into(),
+        rx_total: 10,
+        ..Default::default()
+    };
+    let s = State {
+        nets: vec![net("en0", "Wi-Fi"), net("utun3", ""), net("utun4", "")],
+        vpn: Some(net("VPN", "")),
+        vpn_members: vec!["utun3".into(), "utun4".into()],
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    assert_eq!(h.query_all_by_label("VPN Connection").count(), 1);
+    h.get_by_label("Wi-Fi Connection");
+    open(&mut h, "VPN Connection");
+    assert!(shows(&h, "utun3"));
+    assert!(shows(&h, "utun4"));
+}
+
+#[test]
+fn battery_sidebar_shows_design_capacity() {
+    let s = State {
+        battery: Some(resources_mac::collect::battery::BatteryStat {
+            percent: 76.0,
+            state: "Charging".into(),
+            design_wh: Some(59.0),
+            power_w: 40.9,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    open(&mut h, "59 Wh Battery");
+    assert!(shows(&h, "76 % (Charging)"));
+    assert!(shows(&h, "40.9 W"));
+}
+
+#[test]
+fn processes_page_has_gnome_columns() {
+    let mut h = harness(State::default());
+    open(&mut h, "Processes");
+    for col in ["Process", "Process ID", "User", "Memory", "Processor"] {
+        assert!(h.query_all_by_label(col).next().is_some(), "missing {col}");
+    }
+}
+
+#[test]
+fn about_dialog_shows_version() {
+    let mut h = harness(State::default());
+    h.get_by_label("Main Menu").click();
+    h.run();
+    h.get_by_label("About Resources").click();
+    h.run();
+    assert!(shows(&h, env!("CARGO_PKG_VERSION")));
 }

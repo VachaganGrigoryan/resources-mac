@@ -1,9 +1,15 @@
+use std::collections::HashMap;
+
 use egui::{Align, Layout, Sense, Ui};
 use egui_extras::{Column, TableBuilder};
 
 use crate::actions::{Sig, signal};
+use crate::icons;
+use crate::sample::AppUsage;
 use crate::sampler::State;
-use crate::table::{BarAction, Confirm, Search, SortCol, action_bar, filter_sort, header};
+use crate::table::{
+    BarAction, Confirm, IconCache, Search, SortCol, action_bar, filter_sort, header,
+};
 use crate::widgets::fmt_bytes;
 
 /// Dropdown entries next to "End Process", as upstream.
@@ -13,13 +19,27 @@ const MENU: [(&str, &str, Sig); 3] = [
     ("Continue Process", "Continue", Sig::Cont),
 ];
 
-#[derive(Default)]
 pub struct ProcView {
     pub search: Search,
     col: SortCol,
     asc: bool,
     selected: Option<u32>,
     confirm: Confirm<(u32, Sig)>,
+    icons: IconCache,
+}
+
+impl Default for ProcView {
+    /// Upstream lists processes by memory, largest first.
+    fn default() -> Self {
+        Self {
+            search: Search::default(),
+            col: SortCol::Mem,
+            asc: false,
+            selected: None,
+            confirm: Confirm::default(),
+            icons: IconCache::default(),
+        }
+    }
 }
 
 impl ProcView {
@@ -44,32 +64,44 @@ impl ProcView {
             );
         }
 
+        self.icons.retain(&s.apps);
+        // Processes that belong to an app show that app's icon.
+        let owner: HashMap<u32, &AppUsage> = s
+            .apps
+            .iter()
+            .filter(|a| a.app.pid != 0)
+            .flat_map(|a| a.pids.iter().map(move |&pid| (pid, a)))
+            .collect();
         let (col, asc, sel) = (&mut self.col, &mut self.asc, &mut self.selected);
+        let cache = &mut self.icons;
         TableBuilder::new(ui)
             .sense(Sense::click())
             .cell_layout(Layout::left_to_right(Align::Center))
             .column(Column::remainder().at_least(160.0).clip(true))
-            .column(Column::exact(70.0))
+            .column(Column::exact(90.0))
             .column(Column::exact(100.0))
             .column(Column::exact(110.0))
             .column(Column::exact(90.0))
             .header(28.0, |mut h| {
                 h.col(|ui| {
                     ui.add_space(8.0);
-                    header(ui, "Name", SortCol::Name, col, asc);
+                    header(ui, "Process", SortCol::Name, col, asc);
                 });
-                h.col(|ui| header(ui, "PID", SortCol::Pid, col, asc));
+                h.col(|ui| header(ui, "Process ID", SortCol::Pid, col, asc));
                 h.col(|ui| header(ui, "User", SortCol::User, col, asc));
                 h.col(|ui| header(ui, "Memory", SortCol::Mem, col, asc));
                 h.col(|ui| header(ui, "Processor", SortCol::Cpu, col, asc));
             })
             .body(|body| {
-                body.rows(32.0, rows.len(), |mut row| {
+                body.rows(34.0, rows.len(), |mut row| {
                     let p = rows[row.index()];
                     row.set_selected(*sel == Some(p.pid));
                     let mut clicked = false;
                     row.col(|ui| {
                         ui.add_space(8.0);
+                        let app = owner.get(&p.pid).copied();
+                        cache.show(ui, app, icons::GEAR_SIX, 20.0);
+                        ui.add_space(4.0);
                         clicked |= ui
                             .add(
                                 egui::Label::new(&p.name)

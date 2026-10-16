@@ -36,10 +36,27 @@ fn icon_button_is_found_by_label_not_glyph() {
 }
 
 #[test]
-fn property_rows_show_title_and_value() {
+fn boxed_list_shows_graph_and_rows() {
+    let mut hist = History::default();
+    hist.push(1e6);
     let h = harness(|ui| {
-        widgets::property_rows(ui, &[("Cycles", "123".to_owned())]);
+        widgets::boxed_list(
+            ui,
+            &[
+                widgets::Item::Graph {
+                    caption: "Read Speed",
+                    value: "1.00 MB/s".into(),
+                    series: &[(&hist, color::READ)],
+                    y_max: None,
+                },
+                widgets::Item::Row {
+                    title: "Cycles",
+                    value: "123".into(),
+                },
+            ],
+        );
     });
-    h.get_by_label("Cycles");
-    h.get_by_label("123");
+    for label in ["Read Speed", "1.00 MB/s", "Cycles", "123"] {
+        h.get_by_label(label);
+    }
 }

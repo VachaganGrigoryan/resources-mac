@@ -53,6 +53,11 @@ impl History {
         self.buf.back().copied()
     }
 
+    /// Largest visible value, or 0 when empty (rates and percentages are never negative).
+    pub fn max(&self) -> f64 {
+        self.values().fold(0.0, f64::max)
+    }
+
     pub fn len(&self) -> usize {
         self.buf.len()
     }
@@ -207,6 +212,18 @@ mod tests {
         assert_eq!(h.len(), 60);
         assert_eq!(h.values().next(), Some(1.0));
         assert_eq!(h.last(), Some(60.0));
+    }
+
+    #[test]
+    fn history_max_is_largest_value() {
+        let mut h = History::new(3);
+        assert_eq!(h.max(), 0.0);
+        for v in [5.0, 9.0, 2.0] {
+            h.push(v);
+        }
+        assert_eq!(h.max(), 9.0);
+        h.push(1.0); // 5.0 drops out; 9.0 is still visible
+        assert_eq!(h.max(), 9.0);
     }
 
     #[test]
