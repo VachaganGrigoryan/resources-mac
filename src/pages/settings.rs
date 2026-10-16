@@ -71,7 +71,7 @@ pub fn show(ui: &mut Ui, settings: &mut Settings, s: &State) {
             ui.checkbox(&mut settings.menu_bar, "Show stats in the menu bar");
             hint(
                 ui,
-                "Closing the window keeps Resources running in the menu bar.",
+                "Closing the window keeps Resources running in the menu bar. On a Mac with a notch, macOS hides items that don't fit beside it, so fewer stats show more reliably.",
             );
             ui.add_enabled_ui(settings.menu_bar, |ui| {
                 chips(ui, &mut settings.menu_bar_stats, s);

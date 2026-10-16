@@ -364,7 +364,7 @@ impl App {
                 .iter()
                 .filter_map(|&st| Some(format!("{}: {}", st.label(), stats::card(st, &s)?.value)))
                 .collect();
-            mb.update(&stats::title(&self.settings.menu_bar_stats, &s), &lines);
+            mb.update(&self.settings.menu_bar_stats, &s, &lines);
         }
         // The widget is drawn in the main window's pass, which eframe skips while that window
         // is hidden or covered. Ask for one pass per new sample: asking every frame would

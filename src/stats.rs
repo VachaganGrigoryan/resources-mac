@@ -84,35 +84,91 @@ pub fn primary_disk(s: &State) -> Option<&DiskStat> {
     s.disks.iter().find(|d| d.mount == "/").or(s.disks.first())
 }
 
-/// Compact text for the menu bar (`"CPU 23%"`); `None` when this Mac doesn't report the stat.
-pub fn short(stat: Stat, s: &State) -> Option<String> {
+/// Bytes per second in at most four characters (`"125B"`, `"1.2K"`, `"34M"`): menu bar space
+/// beside the notch is scarce, and the stat's icon already says it is a rate.
+fn compact(bps: f64) -> String {
+    const UNITS: [&str; 5] = ["B", "K", "M", "G", "T"];
+    let mut v = bps.max(0.0);
+    let mut unit = 0;
+    while v >= 999.5 && unit < UNITS.len() - 1 {
+        v /= 1000.0;
+        unit += 1;
+    }
+    if unit > 0 && v < 9.95 {
+        format!("{v:.1}{}", UNITS[unit])
+    } else {
+        format!("{v:.0}{}", UNITS[unit])
+    }
+}
+
+/// The bare current value (`"23%"`, `"↓1.2 MB/s ↑20 kB/s"`); `None` when this Mac doesn't
+/// report the stat.
+pub fn value(stat: Stat, s: &State) -> Option<String> {
     Some(match stat {
-        Stat::Cpu => format!("CPU {:.0}%", s.cpu_total.last().unwrap_or(0.0)),
-        Stat::Memory => format!("MEM {:.0}%", pct(s.mem_used, s.mem_total)),
-        Stat::Swap => format!("SWAP {}", fmt_bytes(s.swap_used)),
-        Stat::Gpu => format!(
-            "GPU {:.0}%",
-            s.gpu.as_ref()?.util_hist.last().unwrap_or(0.0)
-        ),
+        Stat::Cpu => format!("{:.0}%", s.cpu_total.last().unwrap_or(0.0)),
+        Stat::Memory => format!("{:.0}%", pct(s.mem_used, s.mem_total)),
+        Stat::Swap => fmt_bytes(s.swap_used),
+        Stat::Gpu => format!("{:.0}%", s.gpu.as_ref()?.util_hist.last().unwrap_or(0.0)),
         Stat::Network => {
             let n = primary_net(s)?;
-            format!("↓{} ↑{}", fmt_rate(n.rx_bps), fmt_rate(n.tx_bps))
+            format!("↓{} ↑{}", compact(n.rx_bps), compact(n.tx_bps))
         }
         Stat::Disk => {
             let d = primary_disk(s)?;
-            format!("R {} W {}", fmt_rate(d.read_bps), fmt_rate(d.write_bps))
+            format!("R{} W{}", compact(d.read_bps), compact(d.write_bps))
         }
-        Stat::Battery => format!("BAT {:.0}%", s.battery.as_ref()?.percent),
+        Stat::Battery => format!("{:.0}%", s.battery.as_ref()?.percent),
     })
 }
 
-/// Menu bar title for the chosen stats, skipping ones this Mac doesn't report.
+/// SF Symbol shown before the value in the menu bar. Battery follows its charge level.
+pub fn symbol(stat: Stat, s: &State) -> &'static str {
+    match stat {
+        Stat::Cpu => "cpu",
+        Stat::Memory => "memorychip",
+        Stat::Swap => "arrow.left.arrow.right",
+        Stat::Gpu => "cube.transparent",
+        Stat::Network => "network",
+        Stat::Disk => "internaldrive",
+        Stat::Battery => match s.battery.as_ref() {
+            Some(b) if b.state == "Charging" => "battery.100.bolt",
+            Some(b) => match (b.percent / 25.0).round() as u32 {
+                0 => "battery.0",
+                1 => "battery.25",
+                2 => "battery.50",
+                3 => "battery.75",
+                _ => "battery.100",
+            },
+            None => "battery.100",
+        },
+    }
+}
+
+/// Text-only menu bar label (`"CPU 23%"`), for Macs without the stat's SF Symbol.
+pub fn short(stat: Stat, s: &State) -> Option<String> {
+    let tag = match stat {
+        Stat::Cpu => "CPU",
+        Stat::Memory => "MEM",
+        Stat::Swap => "SWAP",
+        Stat::Gpu => "GPU",
+        Stat::Network => "NET",
+        Stat::Disk => "DISK",
+        Stat::Battery => "BAT",
+    };
+    Some(format!("{tag} {}", value(stat, s)?))
+}
+
+/// In-app preview of the menu bar: each stat's icon and value, skipping ones this Mac
+/// doesn't report.
 pub fn title(stats: &[Stat], s: &State) -> String {
-    let parts: Vec<String> = stats.iter().filter_map(|&st| short(st, s)).collect();
+    let parts: Vec<String> = stats
+        .iter()
+        .filter_map(|&st| Some(format!("{} {}", st.icon(), value(st, s)?)))
+        .collect();
     if parts.is_empty() {
         "Resources".into()
     } else {
-        parts.join(" · ")
+        parts.join("   ")
     }
 }
 
@@ -271,8 +327,46 @@ mod tests {
         s.cpu_total.push(23.4);
         assert_eq!(
             title(&[Stat::Cpu, Stat::Gpu, Stat::Memory], &s),
-            "CPU 23% · MEM 25%"
+            format!("{} 23%   {} 25%", icons::CPU, icons::MEMORY)
         );
         assert_eq!(title(&[Stat::Gpu], &s), "Resources");
+        assert_eq!(short(Stat::Cpu, &s).as_deref(), Some("CPU 23%"));
+    }
+
+    #[test]
+    fn compact_rates_stay_short() {
+        assert_eq!(compact(0.0), "0B");
+        assert_eq!(compact(125.0), "125B");
+        assert_eq!(compact(1_234.0), "1.2K");
+        assert_eq!(compact(999_600.0), "1.0M");
+        assert_eq!(compact(34_000_000.0), "34M");
+    }
+
+    #[test]
+    fn battery_symbol_follows_charge() {
+        let battery = |percent, state: &str| State {
+            battery: Some(BatteryStat {
+                percent,
+                state: state.into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert_eq!(
+            symbol(Stat::Battery, &battery(81.0, "Discharging")),
+            "battery.75"
+        );
+        assert_eq!(
+            symbol(Stat::Battery, &battery(5.0, "Discharging")),
+            "battery.0"
+        );
+        assert_eq!(
+            symbol(Stat::Battery, &battery(40.0, "Charging")),
+            "battery.100.bolt"
+        );
+        assert_eq!(
+            value(Stat::Battery, &battery(81.4, "Full")).as_deref(),
+            Some("81%")
+        );
     }
 }
