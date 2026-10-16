@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 
 use crate::collect::apps::running_apps;
+use crate::collect::gpu::{GpuStat, read_gpu};
 use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate};
 
 pub const INTERVAL: Duration = Duration::from_secs(1);
@@ -49,6 +50,8 @@ pub struct State {
     pub nets: Vec<NetStat>,
     pub procs: Vec<ProcInfo>,
     pub apps: Vec<AppUsage>,
+    /// `None` when this Mac exposes no GPU statistics; the page is then hidden.
+    pub gpu: Option<GpuStat>,
 }
 
 pub struct Sampler {
@@ -185,6 +188,16 @@ impl Sampler {
             })
             .collect();
         s.apps = aggregate_apps(&running_apps(), &s.procs);
+
+        match read_gpu() {
+            Some((name, util, mem)) => {
+                let g = s.gpu.get_or_insert_with(GpuStat::default);
+                g.name = name;
+                g.util_hist.push(util);
+                g.mem_used = mem;
+            }
+            None => s.gpu = None,
+        }
     }
 }
 

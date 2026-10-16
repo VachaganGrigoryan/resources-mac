@@ -52,15 +52,13 @@ impl App {
     }
 
     /// Pages that have data on this Mac, in sidebar order.
-    fn pages(_s: &State) -> Vec<Page> {
-        vec![
-            Page::Apps,
-            Page::Processes,
-            Page::Cpu,
-            Page::Memory,
-            Page::Drives,
-            Page::Network,
-        ]
+    fn pages(s: &State) -> Vec<Page> {
+        let mut pages = vec![Page::Apps, Page::Processes, Page::Cpu, Page::Memory];
+        if s.gpu.is_some() {
+            pages.push(Page::Gpu);
+        }
+        pages.extend([Page::Drives, Page::Network]);
+        pages
     }
 
     /// Draws one frame. Public so UI tests can drive it without a window.
@@ -97,6 +95,12 @@ impl App {
                     Page::Processes => self.procs.show(ui, &s),
                     Page::Cpu => pages::cpu::show(ui, &s),
                     Page::Memory => pages::memory::show(ui, &s),
+                    Page::Gpu => match &s.gpu {
+                        Some(g) => pages::gpu::show(ui, g),
+                        None => {
+                            ui.weak("No GPU statistics available.");
+                        }
+                    },
                     Page::Drives => pages::drives::show(ui, &s),
                     Page::Network => pages::network::show(ui, &s),
                     _ => {

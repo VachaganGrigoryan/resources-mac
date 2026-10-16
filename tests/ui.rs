@@ -139,3 +139,20 @@ fn apps_page_lists_apps() {
     let h = harness(s);
     h.get_by_label("Notes");
 }
+
+#[test]
+fn gpu_page_shown_only_with_stats() {
+    let h = harness(State::default());
+    assert!(h.query_by_label("GPU").is_none());
+
+    let s = State {
+        gpu: Some(resources_mac::collect::gpu::GpuStat {
+            name: "Apple M4 Max".into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    open(&mut h, "GPU");
+    h.get_by_label_contains("Apple M4 Max");
+}

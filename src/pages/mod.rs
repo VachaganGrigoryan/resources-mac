@@ -3,6 +3,7 @@
 pub mod apps;
 pub mod cpu;
 pub mod drives;
+pub mod gpu;
 pub mod memory;
 pub mod network;
 pub mod processes;
