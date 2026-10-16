@@ -291,13 +291,14 @@ fn processes_page_has_gnome_columns() {
 }
 
 #[test]
-fn about_dialog_shows_version() {
+fn about_dialog_shows_version_and_license() {
     let mut h = harness(State::default());
     h.get_by_label("Main Menu").click();
     h.run();
     h.get_by_label("About Resources").click();
     h.run();
     assert!(shows(&h, env!("CARGO_PKG_VERSION")));
+    assert!(shows(&h, "Apache-2.0"));
 }
 
 fn notes_with_helper() -> State {

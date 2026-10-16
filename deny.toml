@@ -1,0 +1,21 @@
+# `cargo deny check licenses`: every dependency must be under a license compatible with
+# shipping the app under Apache-2.0. A new license needs a deliberate entry here.
+[graph]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "Unlicense",
+    "Unicode-3.0",
+    # Fonts embedded by epaint_default_fonts.
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+confidence-threshold = 0.9

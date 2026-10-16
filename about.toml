@@ -1,0 +1,18 @@
+# `cargo about generate about.hbs`: THIRD_PARTY_LICENSES.html for the app bundle (scripts/bundle.sh).
+# Keep `accepted` in step with deny.toml.
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "Unlicense",
+    "Unicode-3.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+ignore-dev-dependencies = true
+ignore-build-dependencies = false

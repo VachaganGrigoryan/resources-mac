@@ -1,0 +1,22 @@
+Resources for Mac
+Copyright 2026 Vachagan Grigoryan
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product bundles the following third-party works, each under its own license:
+
+- Phosphor Icons font (assets/fonts/Phosphor.ttf), Copyright (c) 2020-2021
+  Phosphor Icons, MIT License (assets/fonts/Phosphor-LICENSE).
+- egui's default fonts, embedded through the epaint_default_fonts crate:
+  Ubuntu-Light (Ubuntu Font Licence 1.0), Noto Emoji (SIL Open Font License 1.1),
+  Hack (MIT, with Bitstream Vera License portions) and emoji-icon-font (MIT).
+- Rust crates compiled into the binary, listed with their license texts in
+  THIRD_PARTY_LICENSES.html (inside Resources.app/Contents/Resources).
+
+Resources for Mac is an independent project. It is inspired by GNOME Resources
+but is not affiliated with or endorsed by the GNOME Project or the GNOME
+Resources authors. It is written from scratch in Rust and egui; the only things
+taken from GNOME Resources are its graph colour values and its page layout.
+
+Mac and macOS are trademarks of Apple Inc., registered in the U.S. and other
+countries.

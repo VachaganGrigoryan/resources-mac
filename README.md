@@ -89,6 +89,10 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 3. The **Release** workflow builds the universal dmg, attaches it to a draft GitHub release and updates the cask in [`homebrew-tap`](https://github.com/VachaganGrigoryan/homebrew-tap). This needs the repository secret `HOMEBREW_TAP_DEPLOY_KEY`: the private half of an SSH deploy key that has write access to `homebrew-tap` only.
 4. Publish the draft release. The cask URL works only after the release is published.
 
+## Website
+
+The project page lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. After CI passes on `main`, `.github/workflows/deploy-site.yml` deploys it to the home server with `deploy/zimaos/compose.yaml`.
+
 ## Limitations
 
 - Processes owned by other users (e.g. root) can't be ended. The app does not ask for administrator rights.
@@ -96,8 +100,10 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 ## Credits and license
 
-Inspired by [GNOME Resources](https://gitlab.gnome.org/GNOME/Incubator/resources) by nokyan and contributors. This is an independent project and is not affiliated with GNOME.
+Inspired by [GNOME Resources](https://gitlab.gnome.org/GNOME/Incubator/resources) by nokyan and contributors. This is an independent project: it is not affiliated with or endorsed by GNOME, and is written from scratch (only the graph colour values and page layout follow GNOME Resources). Mac and macOS are trademarks of Apple Inc.
 
 Icons: [Phosphor](https://phosphoricons.com/) (MIT, see `assets/fonts/Phosphor-LICENSE`).
 
-Licensed under the [GNU GPL v3.0 or later](LICENSE).
+Licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE) for bundled third-party works. Release builds also carry `THIRD_PARTY_LICENSES.html` with the license of every compiled-in crate (`cargo about generate about.hbs` produces it). Releases up to and including 0.3.0 were published under GPL-3.0-or-later.
+
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
