@@ -63,7 +63,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: VachaganGrigoryan/homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          # Deploy key with write access to homebrew-tap only.
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           path: tap
       - name: Update cask
         run: |

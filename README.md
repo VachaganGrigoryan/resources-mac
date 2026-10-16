@@ -54,7 +54,7 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 1. Bump `version` in `Cargo.toml` and commit.
 2. `git tag v0.1.0 && git push --tags`.
-3. The **Release** workflow builds the universal dmg, attaches it to a draft GitHub release and updates the cask in [`homebrew-tap`](https://github.com/VachaganGrigoryan/homebrew-tap). This needs the repository secret `HOMEBREW_TAP_TOKEN`: a fine-grained token with *Contents: read and write* on `homebrew-tap`.
+3. The **Release** workflow builds the universal dmg, attaches it to a draft GitHub release and updates the cask in [`homebrew-tap`](https://github.com/VachaganGrigoryan/homebrew-tap). This needs the repository secret `HOMEBREW_TAP_DEPLOY_KEY`: the private half of an SSH deploy key that has write access to `homebrew-tap` only.
 4. Publish the draft release. The cask URL works only after the release is published.
 
 ## Limitations
