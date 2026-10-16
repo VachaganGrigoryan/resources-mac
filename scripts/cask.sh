@@ -15,7 +15,7 @@ cask "resources-mac" do
   desc "System monitor inspired by GNOME Resources"
   homepage "https://github.com/VachaganGrigoryan/resources-mac"
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "Resources.app"
 
