@@ -1,0 +1,80 @@
+name: Deploy site
+
+# Puts the project website on the ZimaOS server after CI passes on main: builds the image there,
+# starts it with deploy/zimaos/compose.yaml and checks it answers. A failed check brings the
+# previous image back.
+#
+# Runs on the self-hosted `resources` runner, so it must never run for pull requests: the repo is
+# public and fork PRs need approval in Settings → Actions → General.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, and never one cut off halfway.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  zimaos:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: [self-hosted, resources]
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      COMPOSE: docker compose -p resources-site -f deploy/zimaos/compose.yaml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - name: Name this release
+        run: echo "SITE_TAG=${SHA::12}" >> "$GITHUB_ENV"
+
+      - name: Build the image
+        run: docker build --pull -f site/Dockerfile -t "resources-site:$SITE_TAG" .
+
+      - name: Remember what is running now
+        run: |
+          previous=$(docker inspect resources-site-web-1 --format '{{.Config.Image}}' 2>/dev/null || true)
+          echo "PREVIOUS_TAG=${previous#resources-site:}" >> "$GITHUB_ENV"
+          echo "Running before this deploy: ${previous:-nothing}"
+
+      - name: Start the new release
+        run: $COMPOSE up -d --remove-orphans
+
+      - name: Check it answers
+        id: check
+        run: |
+          check() {
+            for _ in $(seq 1 30); do
+              curl -fsS -o /dev/null "$1" && { echo "ok  $1"; return 0; }
+              sleep 2
+            done
+            echo "FAILED  $1"; return 1
+          }
+          check http://127.0.0.1:8190/healthz
+          check http://127.0.0.1:8190/
+          check http://127.0.0.1:8190/screenshots/light-overview.png
+
+      - name: Bring the previous release back
+        if: failure() && steps.check.conclusion == 'failure' && env.PREVIOUS_TAG != ''
+        run: |
+          $COMPOSE logs --tail 80 web || true
+          SITE_TAG="$PREVIOUS_TAG" $COMPOSE up -d --remove-orphans
+          echo "::error::The new release did not answer; $PREVIOUS_TAG is running again."
+
+      - name: Mark it as the latest release
+        run: docker tag "resources-site:$SITE_TAG" resources-site:latest
+
+      # Keeps the three newest images for going back by hand.
+      - name: Remove old images
+        if: always()
+        run: |
+          docker image ls resources-site --format '{{.CreatedAt}}|{{.Tag}}' | sort -r \
+            | awk -F'|' 'NR > 3 && $2 != "latest" { print $2 }' \
+            | while read -r tag; do docker image rm "resources-site:$tag" || true; done
