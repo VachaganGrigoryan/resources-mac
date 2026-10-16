@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use resources_mac::app::App;
+use resources_mac::icons;
 use resources_mac::sampler::State;
 
 fn harness(state: State) -> Harness<'static, App> {
@@ -355,12 +356,18 @@ fn settings_choose_menu_bar_stats_with_preview() {
     let mut h = harness(State::default());
     open(&mut h, "Settings");
     h.get_by_label("Show stats in the menu bar");
-    assert!(shows(&h, "CPU 0% · MEM 0%"));
+    assert!(shows(
+        &h,
+        &format!("{} 0%   {} 0%", icons::CPU, icons::MEMORY)
+    ));
     // First Swap chip is the menu bar's; the second belongs to the widget.
     h.query_all_by_label_contains("Swap")
         .next()
         .unwrap()
         .click();
     h.run();
-    assert!(shows(&h, "CPU 0% · MEM 0% · SWAP 0 B"));
+    assert!(shows(
+        &h,
+        &format!("{} 0%   {} 0 B", icons::MEMORY, icons::MEMORY)
+    ));
 }
