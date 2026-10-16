@@ -4,6 +4,8 @@
 
 A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui), inspired by [GNOME Resources](https://apps.gnome.org/Resources/).
 
+Website: **[resources.notallow.cc](https://resources.notallow.cc)**
+
 ![Resources for Mac, Overview page](docs/screenshots/dark-overview.png)
 
 - **Overview** (main page): every app as a bubble around "This Mac" (processor and memory rings), sized by memory or processor, its processes packed inside, ring coloured by load; lines show which app launched which. Pan, pinch to zoom, double-click a bubble for that app's process tree; End / Kill / Halt / Continue from the bottom bar
@@ -91,7 +93,7 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 ## Website
 
-The project page lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. After CI passes on `main`, `.github/workflows/deploy-site.yml` deploys it to the home server with `deploy/zimaos/compose.yaml`.
+The project page ([resources.notallow.cc](https://resources.notallow.cc)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. After CI passes on `main`, `.github/workflows/deploy-site.yml` deploys it to the home server with `deploy/zimaos/compose.yaml`.
 
 ## Limitations
 
