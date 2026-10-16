@@ -40,3 +40,38 @@ fn clicking_memory_shows_memory_page() {
     open(&mut h, "Memory");
     h.get_by_label_contains("Swap");
 }
+
+#[test]
+fn drives_page_shows_disk() {
+    let mut s = State::default();
+    s.disks.push(resources_mac::sampler::DiskStat {
+        name: "Macintosh HD".into(),
+        mount: "/".into(),
+        total: 500 << 30,
+        avail: 200 << 30,
+        ..Default::default()
+    });
+    let mut h = harness(s);
+    open(&mut h, "Drives");
+    h.get_by_label_contains("Macintosh HD");
+}
+
+#[test]
+fn network_page_shows_iface_and_hides_loopback() {
+    let mut s = State::default();
+    for name in ["en0", "lo0", "utun9"] {
+        s.nets.push(resources_mac::sampler::NetStat {
+            name: name.into(),
+            rx_total: if name == "utun9" { 0 } else { 1000 },
+            ..Default::default()
+        });
+    }
+    let mut h = harness(s);
+    open(&mut h, "Network");
+    h.get_by_label_contains("en0");
+    assert!(h.query_by_label_contains("lo0").is_none());
+    assert!(
+        h.query_by_label_contains("utun9").is_none(),
+        "never-used interface shown"
+    );
+}

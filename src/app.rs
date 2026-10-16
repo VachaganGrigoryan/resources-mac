@@ -91,6 +91,8 @@ impl App {
                 .show(ui, |ui| match self.page {
                     Page::Cpu => pages::cpu::show(ui, &s),
                     Page::Memory => pages::memory::show(ui, &s),
+                    Page::Drives => pages::drives::show(ui, &s),
+                    Page::Network => pages::network::show(ui, &s),
                     _ => {
                         ui.weak("Collecting…");
                     }
