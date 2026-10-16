@@ -2,16 +2,29 @@
 
 A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui), inspired by [GNOME Resources](https://apps.gnome.org/Resources/).
 
-- **Apps:** running apps with combined CPU and memory across their processes; Quit / Force Quit
-- **Processes:** searchable, sortable list; End (SIGTERM) / Kill (SIGKILL)
+![Resources for Mac, Apps page](docs/screenshots/light-apps.png)
+
+- **Apps:** running apps with their Dock icons and combined CPU and memory across their processes; a System Processes row for the rest; End / Kill / Halt / Continue
+- **Processes:** searchable, sortable list with app icons; End (SIGTERM) / Kill (SIGKILL) / Halt (SIGSTOP) / Continue (SIGCONT)
 - **Processor:** total and per-core usage
 - **Memory:** RAM and swap
 - **GPU:** Apple Silicon usage and memory in use
-- **Drives:** capacity, read/write rates
-- **Network:** per-interface traffic
-- **Battery:** charge, health, cycle count
+- **Drives:** one entry per drive with read/write speed and totals
+- **Network:** one entry per connection (Wi-Fi, Ethernet); system VPN tunnels merged into one entry
+- **Battery:** charge, power draw, health, design capacity, cycle count
 
 The GPU and Battery pages appear only on Macs that report them.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Processes](docs/screenshots/light-processes.png) | ![Processor](docs/screenshots/light-processor.png) |
+| ![Memory](docs/screenshots/light-memory.png) | ![GPU](docs/screenshots/light-gpu.png) |
+| ![Drive](docs/screenshots/light-drive.png) | ![Network](docs/screenshots/light-network.png) |
+| ![Battery](docs/screenshots/light-battery.png) | ![Dark mode](docs/screenshots/dark-apps.png) |
+
+Every page in light and dark mode is in [`docs/screenshots/`](docs/screenshots). They are rendered from sample data with `cargo test --test screenshots -- --ignored`, so re-running it updates them after UI changes.
 
 ## Install
 
@@ -41,7 +54,7 @@ Quality gate (same as CI):
 cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test
 ```
 
-To render every page offscreen (light and dark) into `target/screenshots/` for visual review:
+To regenerate the screenshots in `docs/screenshots/` (every page, light and dark, from sample data):
 
 ```sh
 cargo test --test screenshots -- --ignored
