@@ -2,14 +2,14 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 
 use crate::collect::apps::running_apps;
 use crate::collect::battery::{BatteryStat, read_battery};
 use crate::collect::gpu::{GpuStat, read_gpu};
-use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate};
+use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate, rate_elapsed};
 
 pub const INTERVAL: Duration = Duration::from_secs(1);
 
@@ -62,7 +62,8 @@ pub struct Sampler {
     disks: Disks,
     nets: Networks,
     users: Users,
-    last: Option<Instant>,
+    /// Previous tick on both clocks, to detect sleep (see [`rate_elapsed`]).
+    last: Option<(Instant, SystemTime)>,
     disk_prev: HashMap<String, (u64, u64)>,
     net_prev: HashMap<String, (u64, u64)>,
 }
@@ -87,8 +88,10 @@ impl Sampler {
     }
 
     pub fn tick(&mut self, s: &mut State) {
-        let now = Instant::now();
-        let elapsed = self.last.map_or(Duration::ZERO, |t| now - t);
+        let now = (Instant::now(), SystemTime::now());
+        let elapsed = self.last.map_or(Duration::ZERO, |(mono, wall)| {
+            rate_elapsed(now.0 - mono, now.1.duration_since(wall).unwrap_or_default())
+        });
         self.last = Some(now);
 
         self.sys.refresh_cpu_all();

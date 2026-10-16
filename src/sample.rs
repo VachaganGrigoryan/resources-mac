@@ -13,6 +13,16 @@ pub fn rate(prev: u64, cur: u64, elapsed: Duration) -> f64 {
     (cur - prev) as f64 / secs
 }
 
+/// Time to divide counter deltas by. `Instant` stops while the Mac sleeps, so a wall-clock gap
+/// well beyond the monotonic one means we slept: return zero so rates read 0 instead of a spike.
+pub fn rate_elapsed(mono: Duration, wall: Duration) -> Duration {
+    if wall.saturating_sub(mono) > Duration::from_secs(2) {
+        Duration::ZERO
+    } else {
+        mono
+    }
+}
+
 /// Ring buffer of the most recent `cap` samples.
 #[derive(Clone, Debug)]
 pub struct History {
@@ -86,6 +96,7 @@ pub struct AppUsage {
 
 /// Sums each app's own process plus all its descendants.
 /// Each pid is visited once, so a ppid cycle cannot loop forever.
+/// Apps whose process no longer exists (macOS keeps auto-terminated apps listed) are dropped.
 pub fn aggregate_apps(apps: &[AppInfo], procs: &[ProcInfo]) -> Vec<AppUsage> {
     let by_pid: HashMap<u32, &ProcInfo> = procs.iter().map(|p| (p.pid, p)).collect();
     let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
@@ -117,6 +128,7 @@ pub fn aggregate_apps(apps: &[AppInfo], procs: &[ProcInfo]) -> Vec<AppUsage> {
             }
             usage
         })
+        .filter(|usage| !usage.pids.is_empty())
         .collect()
 }
 
@@ -201,9 +213,25 @@ mod tests {
     }
 
     #[test]
-    fn aggregate_app_without_process() {
-        let out = aggregate_apps(&[app(99)], &[proc(10, None, 1.0, 100)]);
-        assert_eq!(out[0].cpu, 0.0);
-        assert_eq!(out[0].mem, 0);
+    fn aggregate_drops_app_without_process() {
+        // NSWorkspace still lists apps macOS already auto-terminated; they must not show as rows.
+        let out = aggregate_apps(&[app(99), app(10)], &[proc(10, None, 1.0, 100)]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].app.pid, 10);
+    }
+
+    #[test]
+    fn rate_elapsed_normal_tick() {
+        let one = Duration::from_secs(1);
+        assert_eq!(rate_elapsed(one, Duration::from_millis(1200)), one);
+    }
+
+    #[test]
+    fn rate_elapsed_after_sleep_is_zero() {
+        // Instant stops while the Mac sleeps; counters keep the traffic from dark wake.
+        assert_eq!(
+            rate_elapsed(Duration::from_secs(1), Duration::from_secs(3600)),
+            Duration::ZERO
+        );
     }
 }

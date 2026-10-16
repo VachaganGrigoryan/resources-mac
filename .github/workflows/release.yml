@@ -35,15 +35,21 @@ jobs:
 
       - name: Bundle universal app and dmg
         id: bundle
+        # Explicit bash adds pipefail; a failed bundle must never yield an empty sha256 in the cask.
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          sha256=$(scripts/bundle.sh "${{ steps.version.outputs.version }}" | tail -1)
-          echo "$sha256  resources-mac-${{ steps.version.outputs.version }}.dmg" > dist/resources-mac-${{ steps.version.outputs.version }}.dmg.sha256
+          sha256=$(scripts/bundle.sh "$VERSION")
+          [[ $sha256 =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bundle.sh did not print a sha256"; exit 1; }
+          echo "$sha256  resources-mac-$VERSION.dmg" > "dist/resources-mac-$VERSION.dmg.sha256"
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           lipo -info dist/Resources.app/Contents/MacOS/resources-mac
 
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
+          fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
             dist/*.dmg

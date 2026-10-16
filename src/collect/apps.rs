@@ -4,6 +4,11 @@ use crate::sample::AppInfo;
 
 /// Apps that appear in the Dock (regular activation policy), like Activity Monitor's app list.
 pub fn running_apps() -> Vec<AppInfo> {
+    // Called from the sampler thread, which has no autorelease pool of its own.
+    objc2::rc::autoreleasepool(|_| collect())
+}
+
+fn collect() -> Vec<AppInfo> {
     NSWorkspace::sharedWorkspace()
         .runningApplications()
         .iter()
