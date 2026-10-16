@@ -57,7 +57,7 @@ fn drives_page_shows_disk() {
 }
 
 #[test]
-fn removed_device_falls_back_to_apps() {
+fn removed_device_falls_back_to_overview() {
     let state = Arc::new(Mutex::new(State::default()));
     state
         .lock()
@@ -83,6 +83,7 @@ fn removed_device_falls_back_to_apps() {
     h.run();
     assert!(!shows(&h, "USB Stick"), "USB Stick");
     assert!(h.query_by_label("64 GB Drive").is_none());
+    h.get_by_role_and_label(egui::accesskit::Role::Canvas, "Overview");
 }
 
 #[test]
@@ -177,6 +178,7 @@ fn apps_page_lists_apps() {
         ..Default::default()
     };
     let mut h = harness(s);
+    open(&mut h, "Apps");
     h.get_by_label("Notes").click();
     h.run();
     h.get_by_label("End App").click();
@@ -295,4 +297,70 @@ fn about_dialog_shows_version() {
     h.get_by_label("About Resources").click();
     h.run();
     assert!(shows(&h, env!("CARGO_PKG_VERSION")));
+}
+
+fn notes_with_helper() -> State {
+    let mut helper = proc(8, "Notes Helper");
+    helper.ppid = Some(7);
+    State {
+        procs: vec![proc(7, "Notes"), helper],
+        apps: vec![resources_mac::sample::AppUsage {
+            app: resources_mac::sample::AppInfo {
+                pid: 7,
+                name: "Notes".into(),
+                bundle_id: None,
+                icon: None,
+            },
+            cpu: 2.0,
+            mem: 2 << 20,
+            pids: vec![7, 8],
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn overview_is_the_main_page_and_ends_apps() {
+    let mut h = harness(notes_with_helper());
+    h.get_by_role_and_label(egui::accesskit::Role::Canvas, "Overview");
+    h.get_by_label("Notes").click();
+    h.run();
+    h.get_by_label("End App").click();
+    h.run();
+    assert!(shows(&h, "End \"Notes\""));
+}
+
+#[test]
+fn double_clicking_a_bubble_shows_its_process_tree() {
+    let mut h = harness(notes_with_helper());
+    // Let the bubble settle: a double-click needs both clicks in one spot.
+    for _ in 0..200 {
+        h.step();
+    }
+    // Kittest delivers each click in its own 0.25 s frame; widen the double-click window.
+    h.ctx
+        .options_mut(|o| o.input_options.max_double_click_delay = 2.0);
+    let bubble = h.get_by_label("Notes");
+    bubble.click();
+    bubble.click();
+    h.run();
+    h.get_by_label("Notes Helper");
+    h.get_by_label("Back to Overview").click();
+    h.run();
+    assert!(h.query_by_label("Notes Helper").is_none());
+}
+
+#[test]
+fn settings_choose_menu_bar_stats_with_preview() {
+    let mut h = harness(State::default());
+    open(&mut h, "Settings");
+    h.get_by_label("Show stats in the menu bar");
+    assert!(shows(&h, "CPU 0% · MEM 0%"));
+    // First Swap chip is the menu bar's; the second belongs to the widget.
+    h.query_all_by_label_contains("Swap")
+        .next()
+        .unwrap()
+        .click();
+    h.run();
+    assert!(shows(&h, "CPU 0% · MEM 0% · SWAP 0 B"));
 }

@@ -23,3 +23,6 @@ pub const MAGNIFYING_GLASS: &str = "\u{E30C}";
 pub const INFO: &str = "\u{E2CE}";
 pub const CARET_UP: &str = "\u{E13C}";
 pub const CARET_DOWN: &str = "\u{E136}";
+pub const CIRCLES_THREE: &str = "\u{E192}";
+pub const ARROW_LEFT: &str = "\u{E058}";
+pub const CORNERS_OUT: &str = "\u{E1D0}";

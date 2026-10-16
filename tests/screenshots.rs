@@ -48,18 +48,29 @@ fn tunnel(name: &str, rx_total: u64, tx_total: u64) -> NetStat {
 
 fn sample_state() -> State {
     let procs: Vec<ProcInfo> = [
-        (1, "launchd", "root", 0.1, 30),
-        (412, "WindowServer", "_windowserver", 7.2, 410),
-        (900, "Safari", "me", 3.4, 820),
-        (901, "Safari Web Content", "me", 5.1, 640),
-        (950, "Calculator", "me", 0.2, 45),
-        (960, "Notes", "me", 1.1, 210),
-        (970, "kernel_task", "root", 4.0, 1200),
+        (1, 0, "launchd", "root", 0.1, 30),
+        (412, 1, "WindowServer", "_windowserver", 7.2, 410),
+        (900, 1, "Safari", "me", 3.4, 820),
+        (901, 900, "Safari Web Content", "me", 5.1, 640),
+        (902, 900, "Safari Web Content", "me", 2.3, 380),
+        (903, 900, "Safari Networking", "me", 0.6, 90),
+        (904, 900, "Safari Graphics", "me", 1.2, 160),
+        (950, 1, "Calculator", "me", 0.2, 45),
+        (960, 1, "Notes", "me", 1.1, 210),
+        (970, 0, "kernel_task", "root", 4.0, 1200),
+        (980, 1, "mds_stores", "root", 2.2, 160),
+        (981, 1, "Spotlight", "me", 0.4, 120),
+        (1000, 1, "Terminal", "me", 0.9, 150),
+        (1001, 1000, "zsh", "me", 0.0, 8),
+        (1002, 1001, "cargo", "me", 62.0, 900),
+        (1003, 1002, "rustc", "me", 88.0, 1400),
+        (1100, 1001, "TextEdit", "me", 0.3, 70),
+        (1101, 1100, "TextEdit Helper", "me", 0.1, 30),
     ]
     .into_iter()
-    .map(|(pid, name, user, cpu, mb)| ProcInfo {
+    .map(|(pid, ppid, name, user, cpu, mb)| ProcInfo {
         pid,
-        ppid: Some(if pid == 901 { 900 } else { 1 }),
+        ppid: (ppid != 0).then_some(ppid),
         name: name.into(),
         user: user.into(),
         cpu,
@@ -77,6 +88,12 @@ fn sample_state() -> State {
         app(900, "Safari", "/Applications/Safari.app"),
         app(950, "Calculator", "/System/Applications/Calculator.app"),
         app(960, "Notes", "/System/Applications/Notes.app"),
+        app(
+            1000,
+            "Terminal",
+            "/System/Applications/Utilities/Terminal.app",
+        ),
+        app(1100, "TextEdit", "/System/Applications/TextEdit.app"),
     ];
     let mut apps = resources_mac::sample::aggregate_apps(&apps_info, &procs);
     apps.push(system_processes(&apps, &procs));
@@ -147,6 +164,7 @@ fn sample_state() -> State {
             charge_hist: trace(78.0, 2.0, 1),
             power_hist: trace(12.0, 8.0, 5),
         }),
+        ticks: 60,
     }
 }
 
@@ -166,6 +184,7 @@ fn shoot(theme: egui::Theme, name: &str) {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/screenshots");
     std::fs::create_dir_all(&dir).unwrap();
     for (label, slug) in [
+        ("Overview", "overview"),
         ("Apps", "apps"),
         ("Processes", "processes"),
         ("Processor", "processor"),
@@ -175,15 +194,17 @@ fn shoot(theme: egui::Theme, name: &str) {
         ("Wi-Fi Connection", "network"),
         ("VPN Connection", "vpn"),
         ("72 Wh Battery", "battery"),
+        ("Settings", "settings"),
     ] {
         // Lower sidebar entries start scrolled out of the 680 px window.
         h.query_all_by_label(label)
             .next()
             .expect(label)
             .scroll_to_me();
-        h.run();
+        h.run_steps(4);
         h.query_all_by_label(label).next().expect(label).click();
-        h.run();
+        // The Overview's bubbles animate into place (about 30 frames).
+        h.run_steps(60);
         let img = h.render().expect("render");
         img.save(dir.join(format!("{name}-{slug}.png"))).unwrap();
     }

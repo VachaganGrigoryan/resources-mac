@@ -183,19 +183,24 @@ impl IconCache {
             .retain(|pid, _| apps.iter().any(|a| a.app.pid == *pid));
     }
 
+    /// `app`'s Dock icon, uploaded on first use; `None` when it has none.
+    pub fn texture(&mut self, ctx: &egui::Context, a: &AppUsage) -> Option<&egui::TextureHandle> {
+        let img = a.app.icon.as_ref()?;
+        Some(self.0.entry(a.app.pid).or_insert_with(|| {
+            ctx.load_texture(
+                format!("app-icon-{}", a.app.pid),
+                (**img).clone(),
+                egui::TextureOptions::LINEAR,
+            )
+        }))
+    }
+
     /// `size` px icon for `app`, or `glyph` in a faint circle (upstream's `.bubble`)
     /// when it has none.
     pub fn show(&mut self, ui: &mut egui::Ui, app: Option<&AppUsage>, glyph: &str, size: f32) {
         let side = egui::vec2(size, size);
-        if let Some((a, img)) = app.and_then(|a| Some((a, a.app.icon.as_ref()?))) {
-            let tex = self.0.entry(a.app.pid).or_insert_with(|| {
-                ui.ctx().load_texture(
-                    format!("app-icon-{}", a.app.pid),
-                    (**img).clone(),
-                    egui::TextureOptions::LINEAR,
-                )
-            });
-            ui.add(egui::Image::new(&*tex).fit_to_exact_size(side));
+        if let Some(tex) = app.and_then(|a| self.texture(ui.ctx(), a)) {
+            ui.add(egui::Image::new(tex).fit_to_exact_size(side));
             return;
         }
         let (rect, _) = ui.allocate_exact_size(side, egui::Sense::hover());

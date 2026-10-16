@@ -26,7 +26,7 @@ pub struct AppsView {
     col: SortCol,
     asc: bool,
     selected: Option<u32>,
-    confirm: Confirm<AppAction>,
+    actions: AppActions,
     icons: IconCache,
 }
 
@@ -38,7 +38,7 @@ impl Default for AppsView {
             col: SortCol::Name,
             asc: true,
             selected: None,
-            confirm: Confirm::default(),
+            actions: AppActions::default(),
             icons: IconCache::default(),
         }
     }
@@ -66,27 +66,8 @@ impl AppsView {
         // pid 0 is the "System Processes" row: selectable, but nothing to end.
         let selected = self
             .selected
-            .and_then(|pid| apps.iter().find(|a| a.app.pid == pid).copied())
-            .filter(|a| a.app.pid != 0);
-        let count = format!("{} apps", s.apps.iter().filter(|a| a.app.pid != 0).count());
-        let menu = MENU.map(|(label, ..)| label);
-        match (
-            action_bar(ui, &count, "End App", &menu, selected.is_some()),
-            selected,
-        ) {
-            (Some(BarAction::Primary), Some(a)) => self.confirm.ask(
-                AppAction::Quit(a.app.pid),
-                format!("End \"{}\"?", a.app.name),
-            ),
-            (Some(BarAction::Menu(i)), Some(a)) => {
-                let (_, verb, sig) = MENU[i];
-                self.confirm.ask(
-                    AppAction::Signal(a.app.pid, sig),
-                    format!("{verb} \"{}\"?", a.app.name),
-                );
-            }
-            _ => {}
-        }
+            .and_then(|pid| apps.iter().find(|a| a.app.pid == pid).copied());
+        self.actions.show(ui, s, selected);
 
         let (col, asc) = (&mut self.col, &mut self.asc);
         let (sel, cache) = (&mut self.selected, &mut self.icons);
@@ -137,8 +118,38 @@ impl AppsView {
                     }
                 });
             });
+    }
+}
 
-        if let Some(action) = self.confirm.show(ui, "Confirm") {
+/// The bottom bar (End App and its menu) for the selected app, and the confirm dialog that
+/// runs the action; shared by the Apps and Overview pages.
+#[derive(Default)]
+pub struct AppActions(Confirm<AppAction>);
+
+impl AppActions {
+    pub fn show(&mut self, ui: &mut Ui, s: &State, selected: Option<&AppUsage>) {
+        let selected = selected.filter(|a| a.app.pid != 0);
+        let count = format!("{} apps", s.apps.iter().filter(|a| a.app.pid != 0).count());
+        let menu = MENU.map(|(label, ..)| label);
+        match (
+            action_bar(ui, &count, "End App", &menu, selected.is_some()),
+            selected,
+        ) {
+            (Some(BarAction::Primary), Some(a)) => self.0.ask(
+                AppAction::Quit(a.app.pid),
+                format!("End \"{}\"?", a.app.name),
+            ),
+            (Some(BarAction::Menu(i)), Some(a)) => {
+                let (_, verb, sig) = MENU[i];
+                self.0.ask(
+                    AppAction::Signal(a.app.pid, sig),
+                    format!("{verb} \"{}\"?", a.app.name),
+                );
+            }
+            _ => {}
+        }
+
+        if let Some(action) = self.0.show(ui, "Confirm") {
             let result = match action {
                 // Fall back to SIGTERM when the app is not reachable through AppKit.
                 AppAction::Quit(pid) => {
@@ -156,7 +167,7 @@ impl AppsView {
                     .map_or(Ok(()), |a| a.pids.iter().try_for_each(|&p| signal(p, sig))),
                 AppAction::Signal(pid, sig) => signal(pid, sig),
             };
-            self.confirm.finish(result);
+            self.0.finish(result);
         }
     }
 }
