@@ -1,0 +1,29 @@
+[package]
+name = "resources-mac"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "A macOS system monitor inspired by GNOME Resources"
+repository = "https://github.com/VachaganGrigoryan/resources-mac"
+
+[dependencies]
+anyhow = "1"
+core-foundation = "0.10"
+eframe = "0.37"
+egui = "0.37"
+egui_extras = "0.37"
+egui_plot = "0.37"
+io-kit-sys = "0.5"
+libc = "0.2"
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
+starship-battery = "0.12"
+sysinfo = "0.39"
+
+[dev-dependencies]
+egui_kittest = "0.37"
+
+[profile.release]
+lto = true
+strip = true
