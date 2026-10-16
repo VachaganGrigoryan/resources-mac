@@ -1,0 +1,8 @@
+# Allow-list: the site image needs nothing else from the repo.
+*
+!site/Cargo.toml
+!site/Cargo.lock
+!site/src
+!site/static
+!docs/screenshots
+!docs/icon.png

@@ -395,9 +395,12 @@ fn about(ui: &Ui) -> bool {
             ui.add_space(8.0);
             ui.label(RichText::new("github.com/VachaganGrigoryan/resources-mac").small());
             ui.label(
-                RichText::new("GPL-3.0-or-later · Icons: Phosphor (MIT)")
-                    .small()
-                    .weak(),
+                RichText::new(concat!(
+                    env!("CARGO_PKG_LICENSE"),
+                    " · Icons: Phosphor (MIT)"
+                ))
+                .small()
+                .weak(),
             );
             ui.add_space(8.0);
             if ui.button("Close").clicked() {

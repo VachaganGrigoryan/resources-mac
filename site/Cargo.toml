@@ -1,0 +1,20 @@
+[package]
+name = "resources-site"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Project website for Resources for Mac"
+repository = "https://github.com/VachaganGrigoryan/resources-mac"
+publish = false
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tower-http = { version = "0.7", features = ["fs", "set-header"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+
+[profile.release]
+lto = true
+strip = true

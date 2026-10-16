@@ -1,0 +1,17 @@
+# Project website on the ZimaOS server, behind its Cloudflare tunnel (resources.notallow.cc).
+# .github/workflows/deploy-site.yml builds the image there and runs
+# `docker compose -p resources-site -f deploy/zimaos/compose.yaml up -d`.
+# The port listens on localhost only: the tunnel reaches it, the network does not.
+name: resources-site
+
+services:
+  web:
+    image: resources-site:${SITE_TAG:-latest}
+    pull_policy: never
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    ports:
+      - "127.0.0.1:8190:8080"
+    mem_limit: 64m

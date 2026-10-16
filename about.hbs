@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resources for Mac: third-party licenses</title>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 860px; margin: 2em auto; padding: 0 1em; }
+  pre { white-space: pre-wrap; background: #f4f4f5; padding: 1em; border-radius: 8px; }
+  @media (prefers-color-scheme: dark) { body { background: #222226; color: #eee; } pre { background: #2e2e32; } }
+</style>
+</head>
+<body>
+<h1>Third-party licenses</h1>
+<p>Resources for Mac is licensed under the Apache License 2.0. It includes the following Rust crates, grouped by license.</p>
+<ul>
+{{#each overview}}  <li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+{{/each}}</ul>
+{{#each licenses}}
+<h2 id="{{id}}">{{name}}</h2>
+<p>Used by:</p>
+<ul>
+{{#each used_by}}  <li>{{crate.name}} {{crate.version}}{{#if crate.repository}} ({{crate.repository}}){{/if}}</li>
+{{/each}}</ul>
+<pre>{{text}}</pre>
+{{/each}}
+</body>
+</html>
