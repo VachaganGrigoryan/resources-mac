@@ -9,6 +9,7 @@ use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 use crate::collect::apps::running_apps;
 use crate::collect::battery::{BatteryStat, read_battery};
 use crate::collect::gpu::{GpuStat, read_gpu};
+use crate::devices::parse_hardware_ports;
 use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate, rate_elapsed};
 
 pub const INTERVAL: Duration = Duration::from_secs(1);
@@ -19,6 +20,10 @@ pub struct DiskStat {
     pub mount: String,
     pub total: u64,
     pub avail: u64,
+    pub removable: bool,
+    /// Bytes read/written since boot.
+    pub read_total: u64,
+    pub write_total: u64,
     pub read_bps: f64,
     pub write_bps: f64,
     pub read_hist: History,
@@ -28,6 +33,8 @@ pub struct DiskStat {
 #[derive(Clone, Debug, Default)]
 pub struct NetStat {
     pub name: String,
+    /// macOS hardware port ("Wi-Fi", "Ethernet"); empty when unknown (e.g. VPN tunnels).
+    pub port: String,
     pub rx_bps: f64,
     pub tx_bps: f64,
     pub rx_total: u64,
@@ -47,6 +54,7 @@ pub struct State {
     pub swap_total: u64,
     pub swap_used: u64,
     pub mem_hist: History,
+    pub swap_hist: History,
     pub disks: Vec<DiskStat>,
     pub nets: Vec<NetStat>,
     pub procs: Vec<ProcInfo>,
@@ -66,6 +74,7 @@ pub struct Sampler {
     last: Option<(Instant, SystemTime)>,
     disk_prev: HashMap<String, (u64, u64)>,
     net_prev: HashMap<String, (u64, u64)>,
+    ports: HashMap<String, String>,
 }
 
 impl Default for Sampler {
@@ -84,6 +93,7 @@ impl Sampler {
             last: None,
             disk_prev: HashMap::new(),
             net_prev: HashMap::new(),
+            ports: hardware_ports(),
         }
     }
 
@@ -119,6 +129,7 @@ impl Sampler {
         s.swap_total = self.sys.total_swap();
         s.swap_used = self.sys.used_swap();
         s.mem_hist.push(pct(s.mem_used, s.mem_total));
+        s.swap_hist.push(pct(s.swap_used, s.swap_total));
 
         s.disks = self
             .disks
@@ -141,6 +152,8 @@ impl Sampler {
                 stat.mount = mount;
                 stat.total = d.total_space();
                 stat.avail = d.available_space();
+                stat.removable = d.is_removable();
+                (stat.read_total, stat.write_total) = cur;
                 stat.read_bps = rate(prev.0, cur.0, elapsed);
                 stat.write_bps = rate(prev.1, cur.1, elapsed);
                 stat.read_hist.push(stat.read_bps);
@@ -163,6 +176,7 @@ impl Sampler {
                     .cloned()
                     .unwrap_or_default();
                 stat.name = name.clone();
+                stat.port = self.ports.get(name).cloned().unwrap_or_default();
                 stat.rx_total = cur.0;
                 stat.tx_total = cur.1;
                 stat.rx_bps = rate(prev.0, cur.0, elapsed);
@@ -217,6 +231,15 @@ impl Sampler {
             None => s.battery = None,
         }
     }
+}
+
+/// Device → hardware port names, read once: they only change when hardware is added.
+fn hardware_ports() -> HashMap<String, String> {
+    std::process::Command::new("/usr/sbin/networksetup")
+        .arg("-listallhardwareports")
+        .output()
+        .map(|o| parse_hardware_ports(&String::from_utf8_lossy(&o.stdout)))
+        .unwrap_or_default()
 }
 
 fn pct(used: u64, total: u64) -> f64 {

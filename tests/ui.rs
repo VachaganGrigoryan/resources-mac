@@ -13,6 +13,11 @@ fn harness(state: State) -> Harness<'static, App> {
         .build_ui_state(|ui, app: &mut App| app.show(ui), app)
 }
 
+/// True if any widget's label contains `text` (headers repeat names shown in Properties).
+fn shows(h: &Harness<'static, App>, text: &str) -> bool {
+    h.query_all_by_label_contains(text).next().is_some()
+}
+
 /// Clicks the sidebar entry: it is drawn first, so it is the first match.
 fn open(h: &mut Harness<'static, App>, page: &str) {
     h.query_all_by_label(page).next().expect(page).click();
@@ -22,14 +27,7 @@ fn open(h: &mut Harness<'static, App>, page: &str) {
 #[test]
 fn sidebar_lists_pages() {
     let h = harness(State::default());
-    for page in [
-        "Apps",
-        "Processes",
-        "Processor",
-        "Memory",
-        "Drives",
-        "Network",
-    ] {
+    for page in ["Apps", "Processes", "Processor", "Memory"] {
         assert!(h.query_all_by_label(page).count() >= 1, "missing {page}");
     }
 }
@@ -37,9 +35,9 @@ fn sidebar_lists_pages() {
 #[test]
 fn clicking_memory_shows_memory_page() {
     let mut h = harness(State::default());
-    assert!(h.query_by_label_contains("Swap").is_none());
+    assert!(!shows(&h, "Swap"), "Swap");
     open(&mut h, "Memory");
-    h.get_by_label_contains("Swap");
+    assert!(shows(&h, "Swap"), "Swap");
 }
 
 #[test]
@@ -53,24 +51,60 @@ fn drives_page_shows_disk() {
         ..Default::default()
     });
     let mut h = harness(s);
-    open(&mut h, "Drives");
-    h.get_by_label_contains("Macintosh HD");
+    // Sidebar name follows upstream: capacity in decimal units.
+    open(&mut h, "537 GB Drive");
+    assert!(shows(&h, "Macintosh HD"), "Macintosh HD");
+}
+
+#[test]
+fn removed_device_falls_back_to_apps() {
+    let state = Arc::new(Mutex::new(State::default()));
+    state
+        .lock()
+        .unwrap()
+        .disks
+        .push(resources_mac::sampler::DiskStat {
+            name: "USB Stick".into(),
+            mount: "/Volumes/USB".into(),
+            total: 64_000_000_000,
+            removable: true,
+            ..Default::default()
+        });
+    let mut h = Harness::builder()
+        .with_size([1000.0, 680.0])
+        .with_context_setup(resources_mac::theme::apply)
+        .build_ui_state(
+            |ui, app: &mut App| app.show(ui),
+            App::new(Arc::clone(&state)),
+        );
+    open(&mut h, "64 GB Drive");
+    assert!(shows(&h, "USB Stick"), "USB Stick");
+    state.lock().unwrap().disks.clear();
+    h.run();
+    assert!(!shows(&h, "USB Stick"), "USB Stick");
+    assert!(h.query_by_label("64 GB Drive").is_none());
 }
 
 #[test]
 fn network_page_shows_iface_and_hides_loopback() {
     let mut s = State::default();
-    for name in ["en0", "lo0", "utun9"] {
+    for name in ["en0", "lo0", "utun9", "awdl0"] {
         s.nets.push(resources_mac::sampler::NetStat {
             name: name.into(),
+            port: if name == "en0" {
+                "Wi-Fi".into()
+            } else {
+                String::new()
+            },
             rx_total: if name == "utun9" { 0 } else { 1000 },
             ..Default::default()
         });
     }
     let mut h = harness(s);
-    open(&mut h, "Network");
-    h.get_by_label_contains("en0");
-    assert!(h.query_by_label_contains("lo0").is_none());
+    open(&mut h, "Wi-Fi Connection");
+    assert!(shows(&h, "en0"), "en0");
+    assert!(!shows(&h, "lo0"), "lo0");
+    assert!(!shows(&h, "awdl0"), "awdl0");
     assert!(
         h.query_by_label_contains("utun9").is_none(),
         "never-used interface shown"
@@ -155,7 +189,7 @@ fn gpu_page_shown_only_with_stats() {
     };
     let mut h = harness(s);
     open(&mut h, "GPU");
-    h.get_by_label_contains("Apple M4 Max");
+    assert!(shows(&h, "Apple M4 Max"), "Apple M4 Max");
 }
 
 #[test]
@@ -175,6 +209,6 @@ fn battery_page_shown_only_with_battery() {
     };
     let mut h = harness(s);
     open(&mut h, "Battery");
-    h.get_by_label_contains("Charging");
+    assert!(shows(&h, "Charging"), "Charging");
     h.get_by_label("123");
 }

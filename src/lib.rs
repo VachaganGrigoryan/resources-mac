@@ -3,6 +3,7 @@
 pub mod actions;
 pub mod app;
 pub mod collect;
+pub mod devices;
 pub mod icons;
 pub mod pages;
 pub mod sample;

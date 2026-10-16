@@ -1,46 +1,50 @@
 use egui::Ui;
 
 use crate::sampler::State;
-use crate::widgets::{card, details, graph, graph_card};
+use crate::theme::color;
+use crate::widgets::{graph_box, group, property_rows};
 
 pub fn show(ui: &mut Ui, s: &State) {
-    let total = s.cpu_total.last().unwrap_or(0.0);
-    graph_card(
-        ui,
-        "Total usage",
-        &format!("{total:.0} %"),
-        &[&s.cpu_total],
-        Some(100.0),
-    );
-    card(ui, |ui| {
-        details(
+    group(ui, "Usage", |ui| {
+        let total = s.cpu_total.last().unwrap_or(0.0);
+        graph_box(
             ui,
-            "cpu_details",
+            "Total usage",
+            &format!("{total:.0} %"),
+            &[(&s.cpu_total, color::CPU)],
+            Some(100.0),
+            120.0,
+        );
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new("Usage by logical processors")
+                .small()
+                .weak(),
+        );
+        // Upstream uses a flow box; three columns at the 768 px clamp, fewer when narrow.
+        let cols = ((ui.available_width() / 200.0) as usize).clamp(1, 3);
+        for (row, chunk) in s.cpu_cores.chunks(cols).enumerate() {
+            ui.columns(cols, |c| {
+                for (i, core) in chunk.iter().enumerate() {
+                    graph_box(
+                        &mut c[i],
+                        &format!("CPU {}", row * cols + i + 1),
+                        &format!("{:.0} %", core.last().unwrap_or(0.0)),
+                        &[(core, color::CPU_CORE)],
+                        Some(100.0),
+                        70.0,
+                    );
+                }
+            });
+        }
+    });
+    group(ui, "Properties", |ui| {
+        property_rows(
+            ui,
             &[
                 ("Model", s.cpu_model.clone()),
-                ("Logical cores", s.cpu_cores.len().to_string()),
+                ("Logical Cores", s.cpu_cores.len().to_string()),
             ],
         );
-    });
-    card(ui, |ui| {
-        ui.strong("Per core");
-        let cols = 4;
-        let width = (ui.available_width() - 8.0 * (cols - 1) as f32) / cols as f32;
-        egui::Grid::new("cores").spacing([8.0, 8.0]).show(ui, |ui| {
-            for (i, core) in s.cpu_cores.iter().enumerate() {
-                ui.vertical(|ui| {
-                    ui.set_width(width);
-                    ui.small(format!(
-                        "Core {} · {:.0} %",
-                        i + 1,
-                        core.last().unwrap_or(0.0)
-                    ));
-                    graph(ui, &[core], Some(100.0), 48.0);
-                });
-                if (i + 1) % cols == 0 {
-                    ui.end_row();
-                }
-            }
-        });
     });
 }

@@ -1,23 +1,26 @@
 use egui::Ui;
 
 use crate::collect::battery::BatteryStat;
-use crate::widgets::{card, details, graph_card};
+use crate::theme::color;
+use crate::widgets::{graph_box, group, property_rows};
 
 pub fn show(ui: &mut Ui, b: &BatteryStat) {
-    graph_card(
-        ui,
-        "Charge",
-        &format!("{:.0} %", b.percent),
-        &[&b.charge_hist],
-        Some(100.0),
-    );
-    card(ui, |ui| {
+    group(ui, "Usage", |ui| {
+        graph_box(
+            ui,
+            "Charge",
+            &format!("{:.0} %", b.percent),
+            &[(&b.charge_hist, color::BATTERY)],
+            Some(100.0),
+            120.0,
+        );
+    });
+    group(ui, "Properties", |ui| {
         let cycles = b
             .cycles
             .map_or_else(|| "Unknown".to_owned(), |c| c.to_string());
-        details(
+        property_rows(
             ui,
-            "battery_details",
             &[
                 ("State", b.state.clone()),
                 ("Health", format!("{:.0} %", b.health)),
