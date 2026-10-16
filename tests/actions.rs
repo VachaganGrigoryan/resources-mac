@@ -38,3 +38,23 @@ fn signal_rejects_pid_zero() {
     // kill(0, …) would signal our own process group; must be refused.
     assert!(signal(0, Sig::Term).is_err());
 }
+
+#[test]
+fn stop_and_cont_signal_child() {
+    let mut child = Command::new("sleep").arg("30").spawn().unwrap();
+    let pid = child.id() as libc::pid_t;
+    let mut status = 0;
+
+    signal(child.id(), Sig::Stop).unwrap();
+    // SAFETY: waitpid only writes the status of our own child.
+    unsafe { libc::waitpid(pid, &mut status, libc::WUNTRACED) };
+    assert!(libc::WIFSTOPPED(status), "child not stopped");
+
+    signal(child.id(), Sig::Cont).unwrap();
+    // SAFETY: as above.
+    unsafe { libc::waitpid(pid, &mut status, libc::WCONTINUED) };
+    assert!(libc::WIFCONTINUED(status), "child not continued");
+
+    child.kill().unwrap();
+    child.wait().unwrap();
+}

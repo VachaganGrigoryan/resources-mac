@@ -9,7 +9,13 @@ fn harness(state: State) -> Harness<'static, App> {
     let app = App::new(Arc::new(Mutex::new(state)));
     Harness::builder()
         .with_size([1000.0, 680.0])
+        .with_context_setup(resources_mac::theme::apply)
         .build_ui_state(|ui, app: &mut App| app.show(ui), app)
+}
+
+/// True if any widget's label contains `text` (headers repeat names shown in Properties).
+fn shows(h: &Harness<'static, App>, text: &str) -> bool {
+    h.query_all_by_label_contains(text).next().is_some()
 }
 
 /// Clicks the sidebar entry: it is drawn first, so it is the first match.
@@ -21,14 +27,7 @@ fn open(h: &mut Harness<'static, App>, page: &str) {
 #[test]
 fn sidebar_lists_pages() {
     let h = harness(State::default());
-    for page in [
-        "Apps",
-        "Processes",
-        "Processor",
-        "Memory",
-        "Drives",
-        "Network",
-    ] {
+    for page in ["Apps", "Processes", "Processor", "Memory"] {
         assert!(h.query_all_by_label(page).count() >= 1, "missing {page}");
     }
 }
@@ -36,9 +35,9 @@ fn sidebar_lists_pages() {
 #[test]
 fn clicking_memory_shows_memory_page() {
     let mut h = harness(State::default());
-    assert!(h.query_by_label_contains("Swap").is_none());
+    assert!(!shows(&h, "Swap"), "Swap");
     open(&mut h, "Memory");
-    h.get_by_label_contains("Swap");
+    assert!(shows(&h, "Swap"), "Swap");
 }
 
 #[test]
@@ -52,24 +51,60 @@ fn drives_page_shows_disk() {
         ..Default::default()
     });
     let mut h = harness(s);
-    open(&mut h, "Drives");
-    h.get_by_label_contains("Macintosh HD");
+    // Sidebar name follows upstream: capacity in decimal units.
+    open(&mut h, "537 GB Drive");
+    assert!(shows(&h, "Macintosh HD"), "Macintosh HD");
+}
+
+#[test]
+fn removed_device_falls_back_to_apps() {
+    let state = Arc::new(Mutex::new(State::default()));
+    state
+        .lock()
+        .unwrap()
+        .disks
+        .push(resources_mac::sampler::DiskStat {
+            name: "USB Stick".into(),
+            mount: "/Volumes/USB".into(),
+            total: 64_000_000_000,
+            removable: true,
+            ..Default::default()
+        });
+    let mut h = Harness::builder()
+        .with_size([1000.0, 680.0])
+        .with_context_setup(resources_mac::theme::apply)
+        .build_ui_state(
+            |ui, app: &mut App| app.show(ui),
+            App::new(Arc::clone(&state)),
+        );
+    open(&mut h, "64 GB Drive");
+    assert!(shows(&h, "USB Stick"), "USB Stick");
+    state.lock().unwrap().disks.clear();
+    h.run();
+    assert!(!shows(&h, "USB Stick"), "USB Stick");
+    assert!(h.query_by_label("64 GB Drive").is_none());
 }
 
 #[test]
 fn network_page_shows_iface_and_hides_loopback() {
     let mut s = State::default();
-    for name in ["en0", "lo0", "utun9"] {
+    for name in ["en0", "lo0", "utun9", "awdl0"] {
         s.nets.push(resources_mac::sampler::NetStat {
             name: name.into(),
+            port: if name == "en0" {
+                "Wi-Fi".into()
+            } else {
+                String::new()
+            },
             rx_total: if name == "utun9" { 0 } else { 1000 },
             ..Default::default()
         });
     }
     let mut h = harness(s);
-    open(&mut h, "Network");
-    h.get_by_label_contains("en0");
-    assert!(h.query_by_label_contains("lo0").is_none());
+    open(&mut h, "Wi-Fi Connection");
+    assert!(shows(&h, "en0"), "en0");
+    assert!(!shows(&h, "lo0"), "lo0");
+    assert!(!shows(&h, "awdl0"), "awdl0");
     assert!(
         h.query_by_label_contains("utun9").is_none(),
         "never-used interface shown"
@@ -97,6 +132,10 @@ fn processes_search_filters_rows() {
     let mut h = harness(s);
     open(&mut h, "Processes");
     h.get_by_label("Finder");
+    // Search is hidden until the header's Search button (or Cmd+F) opens it, as in GNOME.
+    assert!(h.query_by_role(egui::accesskit::Role::TextInput).is_none());
+    h.get_by_label("Search").click();
+    h.run();
     h.get_by_role(egui::accesskit::Role::TextInput).focus();
     h.run();
     h.get_by_role(egui::accesskit::Role::TextInput)
@@ -116,7 +155,7 @@ fn ending_a_process_asks_for_confirmation() {
     open(&mut h, "Processes");
     h.get_by_label("Safari").click();
     h.run();
-    h.get_by_label("End").click();
+    h.get_by_label("End Process").click();
     h.run();
     h.get_by_label_contains("End \"Safari\"");
 }
@@ -129,6 +168,7 @@ fn apps_page_lists_apps() {
                 pid: 7,
                 name: "Notes".into(),
                 bundle_id: None,
+                icon: None,
             },
             cpu: 2.0,
             mem: 1 << 20,
@@ -136,8 +176,12 @@ fn apps_page_lists_apps() {
         }],
         ..Default::default()
     };
-    let h = harness(s);
-    h.get_by_label("Notes");
+    let mut h = harness(s);
+    h.get_by_label("Notes").click();
+    h.run();
+    h.get_by_label("End App").click();
+    h.run();
+    assert!(shows(&h, "End \"Notes\""));
 }
 
 #[test]
@@ -154,7 +198,7 @@ fn gpu_page_shown_only_with_stats() {
     };
     let mut h = harness(s);
     open(&mut h, "GPU");
-    h.get_by_label_contains("Apple M4 Max");
+    assert!(shows(&h, "Apple M4 Max"), "Apple M4 Max");
 }
 
 #[test]
@@ -174,6 +218,81 @@ fn battery_page_shown_only_with_battery() {
     };
     let mut h = harness(s);
     open(&mut h, "Battery");
-    h.get_by_label_contains("Charging");
+    assert!(shows(&h, "Charging"), "Charging");
     h.get_by_label("123");
+}
+
+#[test]
+fn duplicate_sidebar_names_get_device_suffix() {
+    let mut s = State::default();
+    for (name, mount) in [("Backup A", "/Volumes/A"), ("Backup B", "/Volumes/B")] {
+        s.disks.push(resources_mac::sampler::DiskStat {
+            name: name.into(),
+            mount: mount.into(),
+            total: 1_000_000_000_000,
+            ..Default::default()
+        });
+    }
+    let h = harness(s);
+    h.get_by_label("1 TB Drive (/Volumes/A)");
+    h.get_by_label("1 TB Drive (/Volumes/B)");
+}
+
+#[test]
+fn tunnels_merge_into_one_vpn_entry() {
+    let net = |name: &str, port: &str| resources_mac::sampler::NetStat {
+        name: name.into(),
+        port: port.into(),
+        rx_total: 10,
+        ..Default::default()
+    };
+    let s = State {
+        nets: vec![net("en0", "Wi-Fi"), net("utun3", ""), net("utun4", "")],
+        vpn: Some(net("VPN", "")),
+        vpn_members: vec!["utun3".into(), "utun4".into()],
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    assert_eq!(h.query_all_by_label("VPN Connection").count(), 1);
+    h.get_by_label("Wi-Fi Connection");
+    open(&mut h, "VPN Connection");
+    assert!(shows(&h, "utun3"));
+    assert!(shows(&h, "utun4"));
+}
+
+#[test]
+fn battery_sidebar_shows_design_capacity() {
+    let s = State {
+        battery: Some(resources_mac::collect::battery::BatteryStat {
+            percent: 76.0,
+            state: "Charging".into(),
+            design_wh: Some(59.0),
+            power_w: 40.9,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    open(&mut h, "59 Wh Battery");
+    assert!(shows(&h, "76 % (Charging)"));
+    assert!(shows(&h, "40.9 W"));
+}
+
+#[test]
+fn processes_page_has_gnome_columns() {
+    let mut h = harness(State::default());
+    open(&mut h, "Processes");
+    for col in ["Process", "Process ID", "User", "Memory", "Processor"] {
+        assert!(h.query_all_by_label(col).next().is_some(), "missing {col}");
+    }
+}
+
+#[test]
+fn about_dialog_shows_version() {
+    let mut h = harness(State::default());
+    h.get_by_label("Main Menu").click();
+    h.run();
+    h.get_by_label("About Resources").click();
+    h.run();
+    assert!(shows(&h, env!("CARGO_PKG_VERSION")));
 }

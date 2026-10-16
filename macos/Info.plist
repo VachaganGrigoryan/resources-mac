@@ -8,6 +8,8 @@
 	<string>Resources</string>
 	<key>CFBundleExecutable</key>
 	<string>resources-mac</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.vachagangrigoryan.resources-mac</string>
 	<key>CFBundleInfoDictionaryVersion</key>
