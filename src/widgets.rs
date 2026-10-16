@@ -8,19 +8,19 @@ use crate::sample::History;
 pub const ACCENT: Color32 = Color32::from_rgb(0x00, 0x7A, 0xFF);
 pub const SECOND: Color32 = Color32::from_rgb(0xFF, 0x95, 0x00);
 
-/// Human-readable bytes in binary units: `1536 → "1.5 KiB"`.
+/// Human-readable bytes in decimal units with two decimals: `1536 → "1.54 kB"`.
 pub fn fmt_bytes(n: u64) -> String {
-    const UNITS: [&str; 6] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+    const UNITS: [&str; 6] = ["B", "kB", "MB", "GB", "TB", "PB"];
     let mut v = n as f64;
     let mut unit = 0;
-    while v >= 1024.0 && unit < UNITS.len() - 1 {
-        v /= 1024.0;
+    while v >= 1000.0 && unit < UNITS.len() - 1 {
+        v /= 1000.0;
         unit += 1;
     }
     if unit == 0 {
         format!("{n} B")
     } else {
-        format!("{v:.1} {}", UNITS[unit])
+        format!("{v:.2} {}", UNITS[unit])
     }
 }
 
@@ -131,8 +131,10 @@ mod tests {
 
     #[test]
     fn fmt_bytes_units() {
+        // Decimal units with two decimals, like GNOME Resources and Finder.
         assert_eq!(fmt_bytes(512), "512 B");
-        assert_eq!(fmt_bytes(1536), "1.5 KiB");
-        assert_eq!(fmt_bytes(3 * 1024 * 1024 * 1024), "3.0 GiB");
+        assert_eq!(fmt_bytes(1536), "1.54 kB");
+        assert_eq!(fmt_bytes(962_560), "962.56 kB");
+        assert_eq!(fmt_bytes(3_000_000_000), "3.00 GB");
     }
 }

@@ -9,6 +9,7 @@ fn harness(state: State) -> Harness<'static, App> {
     let app = App::new(Arc::new(Mutex::new(state)));
     Harness::builder()
         .with_size([1000.0, 680.0])
+        .with_context_setup(resources_mac::theme::apply)
         .build_ui_state(|ui, app: &mut App| app.show(ui), app)
 }
 

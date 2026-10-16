@@ -66,4 +66,6 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 Inspired by [GNOME Resources](https://gitlab.gnome.org/GNOME/Incubator/resources) by nokyan and contributors. This is an independent project and is not affiliated with GNOME.
 
+Icons: [Phosphor](https://phosphoricons.com/) (MIT, see `assets/fonts/Phosphor-LICENSE`).
+
 Licensed under the [GNU GPL v3.0 or later](LICENSE).
