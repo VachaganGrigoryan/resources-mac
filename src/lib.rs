@@ -2,12 +2,16 @@
 
 pub mod actions;
 pub mod app;
+pub mod bubbles;
 pub mod collect;
+pub mod desktop_widget;
 pub mod devices;
 pub mod icons;
+pub mod menubar;
 pub mod pages;
 pub mod sample;
 pub mod sampler;
+pub mod stats;
 pub mod table;
 pub mod theme;
 pub mod widgets;

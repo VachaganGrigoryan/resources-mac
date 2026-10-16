@@ -7,4 +7,6 @@ pub mod drives;
 pub mod gpu;
 pub mod memory;
 pub mod network;
+pub mod overview;
 pub mod processes;
+pub mod settings;

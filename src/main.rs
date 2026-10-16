@@ -1,13 +1,14 @@
 use std::sync::{Arc, Mutex};
 
 use resources_mac::app::App;
+use resources_mac::pages::settings::Settings;
 use resources_mac::sampler::{self, State};
 use resources_mac::theme;
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Resources")
+            .with_title(resources_mac::menubar::MAIN_WINDOW)
             .with_icon(
                 eframe::icon_data::from_png_bytes(resources_mac::APP_ICON_PNG)
                     .expect("embedded icon is a valid PNG"),
@@ -36,7 +37,11 @@ fn main() -> eframe::Result {
             theme::apply(&cc.egui_ctx);
             let state = Arc::new(Mutex::new(State::default()));
             sampler::spawn(Arc::clone(&state), cc.egui_ctx.clone());
-            Ok(Box::new(App::new(state)))
+            let settings = cc
+                .storage
+                .and_then(|st| eframe::get_value(st, Settings::KEY))
+                .unwrap_or_default();
+            Ok(Box::new(App::new(state).with_settings(settings)))
         }),
     )
 }

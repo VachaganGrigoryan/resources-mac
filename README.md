@@ -4,8 +4,12 @@
 
 A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui), inspired by [GNOME Resources](https://apps.gnome.org/Resources/).
 
-![Resources for Mac, Apps page](docs/screenshots/light-apps.png)
+![Resources for Mac, Overview page](docs/screenshots/dark-overview.png)
 
+- **Overview** (main page): every app as a bubble around "This Mac" (processor and memory rings), sized by memory or processor, its processes packed inside, ring coloured by load; lines show which app launched which. Pan, pinch to zoom, double-click a bubble for that app's process tree; End / Kill / Halt / Continue from the bottom bar
+- **Menu bar:** chosen stats (`CPU 23% · MEM 61%`) with a menu of all current values; closing the window keeps Resources running there
+- **Desktop widget:** a small window below your other windows with live graphs of chosen stats; drag it anywhere
+- **Settings:** pick the stats for the menu bar and the widget, with suggestions based on what your Mac is doing right now
 - **Apps:** running apps with their Dock icons and combined CPU and memory across their processes; a System Processes row for the rest; End / Kill / Halt / Continue
 - **Processes:** searchable, sortable list with app icons; End (SIGTERM) / Kill (SIGKILL) / Halt (SIGSTOP) / Continue (SIGCONT)
 - **Processor:** total and per-core usage
@@ -21,10 +25,11 @@ The GPU and Battery pages appear only on Macs that report them.
 
 | | |
 |---|---|
-| ![Processes](docs/screenshots/light-processes.png) | ![Processor](docs/screenshots/light-processor.png) |
-| ![Memory](docs/screenshots/light-memory.png) | ![GPU](docs/screenshots/light-gpu.png) |
-| ![Drive](docs/screenshots/light-drive.png) | ![Network](docs/screenshots/light-network.png) |
-| ![Battery](docs/screenshots/light-battery.png) | ![Dark mode](docs/screenshots/dark-apps.png) |
+| ![Processes](docs/screenshots/dark-processes.png) | ![Processor](docs/screenshots/dark-processor.png) |
+| ![Memory](docs/screenshots/dark-memory.png) | ![GPU](docs/screenshots/dark-gpu.png) |
+| ![Drive](docs/screenshots/dark-drive.png) | ![Network](docs/screenshots/dark-network.png) |
+| ![Battery](docs/screenshots/dark-battery.png) | ![Light mode](docs/screenshots/light-overview.png) |
+| ![Apps](docs/screenshots/dark-apps.png) | ![Settings](docs/screenshots/dark-settings.png) |
 
 Every page in light and dark mode is in [`docs/screenshots/`](docs/screenshots). They are rendered from sample data with `cargo test --test screenshots -- --ignored`, so re-running it updates them after UI changes.
 

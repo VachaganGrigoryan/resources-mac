@@ -9,19 +9,21 @@ repository = "https://github.com/VachaganGrigoryan/resources-mac"
 [dependencies]
 anyhow = "1"
 core-foundation = "0.10"
-eframe = "0.37"
+eframe = { version = "0.37", features = ["persistence"] }
 egui = "0.37"
 egui_extras = "0.37"
 io-kit-sys = "0.5"
 libc = "0.2"
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "objc2-core-foundation", "NSBitmapImageRep", "NSGraphics", "NSGraphicsContext", "NSImage", "NSImageRep", "NSRunningApplication", "NSWorkspace"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "objc2-core-foundation", "NSBitmapImageRep", "NSGraphics", "NSGraphicsContext", "NSImage", "NSImageRep", "NSRunningApplication", "NSWorkspace", "NSApplication", "NSButton", "NSCell", "NSControl", "NSFont", "NSFontDescriptor", "NSMenu", "NSMenuItem", "NSResponder", "NSStatusBar", "NSStatusBarButton", "NSStatusItem", "NSView", "NSWindow"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSString", "NSThread"] }
+serde = { version = "1", features = ["derive"] }
 starship-battery = "0.12"
 sysinfo = "0.39"
 
 [dev-dependencies]
 egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"] }
+ron = "0.12"
 
 [profile.release]
 lto = true

@@ -69,6 +69,8 @@ pub struct State {
     pub gpu: Option<GpuStat>,
     /// `None` on Macs without a battery; the page is then hidden.
     pub battery: Option<BatteryStat>,
+    /// Number of samples taken; tells a new sample from a repaint for other reasons.
+    pub ticks: u64,
 }
 
 pub struct Sampler {
@@ -107,6 +109,7 @@ impl Sampler {
     }
 
     pub fn tick(&mut self, s: &mut State) {
+        s.ticks += 1;
         let now = (Instant::now(), SystemTime::now());
         let elapsed = self.last.map_or(Duration::ZERO, |(mono, wall)| {
             rate_elapsed(now.0 - mono, now.1.duration_since(wall).unwrap_or_default())
