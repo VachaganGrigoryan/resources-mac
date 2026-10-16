@@ -101,6 +101,16 @@ fn entries(s: &State) -> Vec<Entry<'_>> {
             )),
         });
     }
+    // Several system tunnels all read "VPN Connection"; tell same-named devices apart.
+    let labels: Vec<String> = out.iter().map(|e| e.label.clone()).collect();
+    for e in &mut out {
+        if labels.iter().filter(|l| **l == e.label).count() > 1 {
+            match &e.page {
+                Page::Drive(key) | Page::Network(key) => e.label = format!("{} ({key})", e.label),
+                _ => {}
+            }
+        }
+    }
     if let Some(b) = &s.battery {
         out.push(Entry {
             page: Page::Battery,
@@ -178,8 +188,8 @@ impl App {
             .resizable(false)
             .frame(Frame::new().fill(p.sidebar).inner_margin(8))
             .show(ui, |ui| {
-                // Room for the traffic-light buttons of the transparent title bar.
-                ui.add_space(20.0);
+                // Same baseline as the page header; the traffic lights sit to the left.
+                ui.add_space(6.0);
                 ui.vertical_centered(|ui| ui.label(RichText::new("Resources").strong()));
                 ui.add_space(8.0);
                 egui::ScrollArea::vertical()

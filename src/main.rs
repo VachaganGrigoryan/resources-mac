@@ -9,7 +9,11 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Resources")
             .with_inner_size([1000.0, 680.0])
-            .with_min_inner_size([720.0, 480.0]),
+            .with_min_inner_size([720.0, 480.0])
+            // GNOME-style: the sidebar and header bar run under a transparent title bar.
+            .with_fullsize_content_view(true)
+            .with_titlebar_shown(false)
+            .with_title_shown(false),
         // A monitor stays open for hours: never wake the discrete GPU on dual-GPU Intel MacBooks.
         wgpu_options: eframe::WgpuConfiguration {
             wgpu_setup: eframe::egui_wgpu::WgpuSetupCreateNew {

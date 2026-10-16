@@ -87,7 +87,10 @@ impl AppsView {
             .column(Column::exact(110.0))
             .column(Column::exact(100.0))
             .header(28.0, |mut h| {
-                h.col(|ui| header(ui, "App", SortCol::Name, col, asc));
+                h.col(|ui| {
+                    ui.add_space(8.0);
+                    header(ui, "App", SortCol::Name, col, asc);
+                });
                 h.col(|ui| header(ui, "Memory", SortCol::Mem, col, asc));
                 h.col(|ui| header(ui, "Processor", SortCol::Cpu, col, asc));
             })

@@ -221,3 +221,18 @@ fn battery_page_shown_only_with_battery() {
     assert!(shows(&h, "Charging"), "Charging");
     h.get_by_label("123");
 }
+
+#[test]
+fn duplicate_sidebar_names_get_device_suffix() {
+    let mut s = State::default();
+    for name in ["utun3", "utun4"] {
+        s.nets.push(resources_mac::sampler::NetStat {
+            name: name.into(),
+            rx_total: 10,
+            ..Default::default()
+        });
+    }
+    let h = harness(s);
+    h.get_by_label("VPN Connection (utun3)");
+    h.get_by_label("VPN Connection (utun4)");
+}

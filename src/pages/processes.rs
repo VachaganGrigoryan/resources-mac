@@ -54,7 +54,10 @@ impl ProcView {
             .column(Column::exact(110.0))
             .column(Column::exact(90.0))
             .header(28.0, |mut h| {
-                h.col(|ui| header(ui, "Name", SortCol::Name, col, asc));
+                h.col(|ui| {
+                    ui.add_space(8.0);
+                    header(ui, "Name", SortCol::Name, col, asc);
+                });
                 h.col(|ui| header(ui, "PID", SortCol::Pid, col, asc));
                 h.col(|ui| header(ui, "User", SortCol::User, col, asc));
                 h.col(|ui| header(ui, "Memory", SortCol::Mem, col, asc));

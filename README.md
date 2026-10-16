@@ -41,6 +41,12 @@ Quality gate (same as CI):
 cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test
 ```
 
+To render every page offscreen (light and dark) into `target/screenshots/` for visual review:
+
+```sh
+cargo test --test screenshots -- --ignored
+```
+
 To build the universal `.app` and `.dmg` locally:
 
 ```sh
