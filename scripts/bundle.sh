@@ -17,6 +17,8 @@ lipo -create \
   "$root/target/x86_64-apple-darwin/release/$bin" \
   -output "$app/Contents/MacOS/$bin"
 sed "s/__VERSION__/$version/g" "$root/macos/Info.plist" > "$app/Contents/Info.plist"
+mkdir -p "$app/Contents/Resources"
+cp "$root/macos/AppIcon.icns" "$app/Contents/Resources/"
 
 # Ad-hoc signature: not notarized, but required for arm64 binaries to launch at all.
 codesign --force --sign - "$app"

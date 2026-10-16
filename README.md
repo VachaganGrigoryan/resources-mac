@@ -1,3 +1,5 @@
+<img src="docs/icon.png" alt="" width="128" align="right">
+
 # Resources for Mac
 
 A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui), inspired by [GNOME Resources](https://apps.gnome.org/Resources/).
@@ -52,6 +54,12 @@ Quality gate (same as CI):
 
 ```sh
 cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test
+```
+
+The app icon is drawn in code; to regenerate `macos/AppIcon.icns` and the PNGs after changing `scripts/icon.swift`:
+
+```sh
+swift scripts/icon.swift
 ```
 
 To regenerate the screenshots in `docs/screenshots/` (every page, light and dark, from sample data):
