@@ -170,7 +170,7 @@ pub fn sidebar_item(
 pub fn header_bar(ui: &mut Ui, title: &str, subtitle: Option<&str>) {
     ui.vertical_centered(|ui| {
         ui.add_space(if subtitle.is_some() { 4.0 } else { 12.0 });
-        ui.label(RichText::new(title).strong());
+        ui.label(RichText::new(title).heading().strong());
         if let Some(sub) = subtitle {
             ui.label(RichText::new(sub).small().weak());
         }
@@ -197,7 +197,7 @@ pub fn page_column<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
 /// Bold group title followed by its content (upstream `AdwPreferencesGroup`).
 pub fn group<R>(ui: &mut Ui, title: &str, add: impl FnOnce(&mut Ui) -> R) -> R {
     ui.add_space(12.0);
-    ui.label(RichText::new(title).strong());
+    ui.label(RichText::new(title).heading().strong());
     add(ui)
 }
 
@@ -316,9 +316,13 @@ pub fn destructive_button(ui: &mut Ui, label: &str, enabled: bool) -> Response {
     let red = crate::theme::DESTRUCTIVE;
     ui.add_enabled(
         enabled,
-        egui::Button::new(RichText::new(label).strong().color(red))
-            .fill(red.gamma_multiply(0.15))
-            .corner_radius(8),
+        egui::Button::new(
+            RichText::new(label)
+                .family(crate::theme::semibold())
+                .color(red),
+        )
+        .fill(red.gamma_multiply(0.15))
+        .corner_radius(8),
     )
 }
 

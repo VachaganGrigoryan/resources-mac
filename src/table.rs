@@ -54,8 +54,15 @@ pub fn header(ui: &mut egui::Ui, label: &str, this: SortCol, col: &mut SortCol, 
     } else {
         label.to_owned()
     };
-    let resp =
-        ui.add(egui::Button::new(egui::RichText::new(text).small().strong().weak()).frame(false));
+    let resp = ui.add(
+        egui::Button::new(
+            egui::RichText::new(text)
+                .small()
+                .family(crate::theme::semibold())
+                .weak(),
+        )
+        .frame(false),
+    );
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ColumnHeader, true, label));
     if resp.clicked() {
         if *col == this {

@@ -3,13 +3,21 @@
 
 use std::sync::Arc;
 
-use egui::{Color32, FontData, FontDefinitions, FontFamily, Theme, Visuals};
+use egui::epaint::text::{FontTweak, VariationCoords};
+use egui::{Color32, FontData, FontDefinitions, FontFamily, FontId, TextStyle, Theme, Visuals};
 
 use crate::icons;
 
 const SF_PRO: &str = "/System/Library/Fonts/SFNS.ttf";
 
 pub const ACCENT: Color32 = Color32::from_rgb(0x35, 0x84, 0xE4);
+/// Font family for titles: SF Pro at weight 600 (regular-weight fallback without SF Pro).
+pub const SEMIBOLD: &str = "semibold";
+
+pub fn semibold() -> FontFamily {
+    FontFamily::Name(SEMIBOLD.into())
+}
+
 pub const DESTRUCTIVE: Color32 = Color32::from_rgb(0xE0, 0x1B, 0x24);
 
 /// Graph colours, copied from upstream `src/ui/pages/*.rs` (`MAIN_GRAPH_COLOR` and friends).
@@ -65,21 +73,34 @@ pub fn apply(ctx: &egui::Context) {
 
     let mut fonts = FontDefinitions::default();
     // SF Pro is read from the system at runtime (not bundled); egui's default font is the fallback.
+    let semibold = semibold();
+    let mut semibold_list = fonts.families[&FontFamily::Proportional].clone();
     if let Ok(bytes) = std::fs::read(SF_PRO) {
+        let bold = FontData::from_owned(bytes.clone()).tweak(FontTweak {
+            coords: VariationCoords::new([(b"wght", 600.0)]),
+            ..Default::default()
+        });
         fonts
             .font_data
             .insert("sf".into(), Arc::new(FontData::from_owned(bytes)));
+        fonts.font_data.insert("sf-semibold".into(), Arc::new(bold));
         fonts
             .families
             .entry(FontFamily::Proportional)
             .or_default()
             .insert(0, "sf".into());
+        semibold_list.insert(0, "sf-semibold".into());
     }
+    fonts.families.insert(semibold.clone(), semibold_list);
     fonts.font_data.insert(
         "phosphor".into(),
         Arc::new(FontData::from_static(icons::FONT)),
     );
-    for family in [FontFamily::Proportional, FontFamily::Monospace] {
+    for family in [
+        FontFamily::Proportional,
+        FontFamily::Monospace,
+        semibold.clone(),
+    ] {
         fonts
             .families
             .entry(family)
@@ -90,6 +111,15 @@ pub fn apply(ctx: &egui::Context) {
 
     for theme in [Theme::Light, Theme::Dark] {
         ctx.style_mut_of(theme, |style| {
+            // macOS HIG scale: 11 caption, 13 body, 15 semibold title.
+            style.text_styles = [
+                (TextStyle::Small, FontId::proportional(11.0)),
+                (TextStyle::Body, FontId::proportional(13.0)),
+                (TextStyle::Button, FontId::proportional(13.0)),
+                (TextStyle::Monospace, FontId::monospace(12.0)),
+                (TextStyle::Heading, FontId::new(15.0, semibold.clone())),
+            ]
+            .into();
             style.spacing.item_spacing = egui::vec2(8.0, 8.0);
             style.spacing.button_padding = egui::vec2(12.0, 6.0);
             let v = &mut style.visuals;

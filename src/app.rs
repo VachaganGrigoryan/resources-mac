@@ -9,7 +9,7 @@ use crate::devices::{self, battery_display_name, drive_display_name, net_display
 use crate::icons;
 use crate::pages;
 use crate::sampler::{NetStat, State};
-use crate::theme::{color, palette};
+use crate::theme::{self, color, palette};
 use crate::widgets::{Series, header_bar, icon_button, page_column, sidebar_item};
 
 /// Sidebar width, as in the GNOME screenshots.
@@ -218,7 +218,7 @@ impl App {
                 // Same baseline as the page header; the traffic lights sit to the left.
                 ui.add_space(6.0);
                 let title = ui
-                    .vertical_centered(|ui| ui.label(RichText::new("Resources").strong()))
+                    .vertical_centered(|ui| ui.label(RichText::new("Resources").heading().strong()))
                     .inner
                     .rect;
                 let at = egui::Rect::from_center_size(
@@ -295,7 +295,11 @@ fn about(ui: &Ui) -> bool {
         ui.set_width(320.0);
         ui.vertical_centered(|ui| {
             ui.label(RichText::new(icons::CPU).size(40.0).color(color::CPU));
-            ui.label(RichText::new("Resources").size(20.0).strong());
+            ui.label(
+                RichText::new("Resources")
+                    .size(20.0)
+                    .family(theme::semibold()),
+            );
             ui.label(RichText::new(env!("CARGO_PKG_VERSION")).weak());
             ui.add_space(8.0);
             ui.label("A system monitor for macOS, inspired by GNOME Resources.");
