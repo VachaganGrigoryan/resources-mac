@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 
-use crate::collect::apps::running_apps;
+use crate::collect::apps::{app_icon, running_apps};
 use crate::collect::battery::{BatteryStat, read_battery};
 use crate::collect::gpu::{GpuStat, read_gpu};
 use crate::devices::parse_hardware_ports;
@@ -75,6 +75,8 @@ pub struct Sampler {
     disk_prev: HashMap<String, (u64, u64)>,
     net_prev: HashMap<String, (u64, u64)>,
     ports: HashMap<String, String>,
+    /// Rendered once per app launch; `None` records "no icon" so it isn't retried every tick.
+    icons: HashMap<u32, Option<Arc<egui::ColorImage>>>,
 }
 
 impl Default for Sampler {
@@ -94,6 +96,7 @@ impl Sampler {
             disk_prev: HashMap::new(),
             net_prev: HashMap::new(),
             ports: hardware_ports(),
+            icons: HashMap::new(),
         }
     }
 
@@ -207,7 +210,17 @@ impl Sampler {
                 threads: p.tasks().map(|t| t.len()),
             })
             .collect();
-        s.apps = aggregate_apps(&running_apps(), &s.procs);
+        let mut apps = running_apps();
+        self.icons
+            .retain(|pid, _| apps.iter().any(|a| a.pid == *pid));
+        for a in &mut apps {
+            a.icon = self
+                .icons
+                .entry(a.pid)
+                .or_insert_with(|| app_icon(a.pid).map(Arc::new))
+                .clone();
+        }
+        s.apps = aggregate_apps(&apps, &s.procs);
 
         match read_gpu() {
             Some((name, util, mem)) => {

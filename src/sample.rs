@@ -84,6 +84,8 @@ pub struct AppInfo {
     pub pid: u32,
     pub name: String,
     pub bundle_id: Option<String>,
+    /// Dock icon; `Arc` keeps cloning `State` every tick cheap.
+    pub icon: Option<std::sync::Arc<egui::ColorImage>>,
 }
 
 #[derive(Clone, Debug)]
@@ -154,6 +156,7 @@ mod tests {
             pid,
             name: format!("app{pid}"),
             bundle_id: None,
+            icon: None,
         }
     }
 

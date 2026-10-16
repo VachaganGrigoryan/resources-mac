@@ -164,6 +164,7 @@ fn apps_page_lists_apps() {
                 pid: 7,
                 name: "Notes".into(),
                 bundle_id: None,
+                icon: None,
             },
             cpu: 2.0,
             mem: 1 << 20,
