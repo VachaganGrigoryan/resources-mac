@@ -6,7 +6,8 @@ use std::time::{Duration, Instant};
 
 use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 
-use crate::sample::{AppUsage, History, ProcInfo, rate};
+use crate::collect::apps::running_apps;
+use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate};
 
 pub const INTERVAL: Duration = Duration::from_secs(1);
 
@@ -183,6 +184,7 @@ impl Sampler {
                 threads: p.tasks().map(|t| t.len()),
             })
             .collect();
+        s.apps = aggregate_apps(&running_apps(), &s.procs);
     }
 }
 

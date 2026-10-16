@@ -37,6 +37,8 @@ impl Page {
 pub struct App {
     state: Arc<Mutex<State>>,
     page: Page,
+    apps: pages::apps::AppsView,
+    procs: pages::processes::ProcView,
 }
 
 impl App {
@@ -44,6 +46,8 @@ impl App {
         Self {
             state,
             page: Page::Apps,
+            apps: Default::default(),
+            procs: Default::default(),
         }
     }
 
@@ -89,6 +93,8 @@ impl App {
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
                 .show(ui, |ui| match self.page {
+                    Page::Apps => self.apps.show(ui, &s),
+                    Page::Processes => self.procs.show(ui, &s),
                     Page::Cpu => pages::cpu::show(ui, &s),
                     Page::Memory => pages::memory::show(ui, &s),
                     Page::Drives => pages::drives::show(ui, &s),

@@ -75,3 +75,67 @@ fn network_page_shows_iface_and_hides_loopback() {
         "never-used interface shown"
     );
 }
+
+fn proc(pid: u32, name: &str) -> resources_mac::sample::ProcInfo {
+    resources_mac::sample::ProcInfo {
+        pid,
+        ppid: None,
+        name: name.into(),
+        user: "me".into(),
+        cpu: 1.0,
+        mem: 1 << 20,
+        threads: None,
+    }
+}
+
+#[test]
+fn processes_search_filters_rows() {
+    let s = State {
+        procs: vec![proc(101, "Safari"), proc(202, "Finder")],
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    open(&mut h, "Processes");
+    h.get_by_label("Finder");
+    h.get_by_role(egui::accesskit::Role::TextInput).focus();
+    h.run();
+    h.get_by_role(egui::accesskit::Role::TextInput)
+        .type_text("saf");
+    h.run();
+    h.get_by_label("Safari");
+    assert!(h.query_by_label("Finder").is_none());
+}
+
+#[test]
+fn ending_a_process_asks_for_confirmation() {
+    let s = State {
+        procs: vec![proc(101, "Safari")],
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    open(&mut h, "Processes");
+    h.get_by_label("Safari").click();
+    h.run();
+    h.get_by_label("End").click();
+    h.run();
+    h.get_by_label_contains("End \"Safari\"");
+}
+
+#[test]
+fn apps_page_lists_apps() {
+    let s = State {
+        apps: vec![resources_mac::sample::AppUsage {
+            app: resources_mac::sample::AppInfo {
+                pid: 7,
+                name: "Notes".into(),
+                bundle_id: None,
+            },
+            cpu: 2.0,
+            mem: 1 << 20,
+            pids: vec![7],
+        }],
+        ..Default::default()
+    };
+    let h = harness(s);
+    h.get_by_label("Notes");
+}
