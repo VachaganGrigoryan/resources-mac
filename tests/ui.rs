@@ -156,3 +156,24 @@ fn gpu_page_shown_only_with_stats() {
     open(&mut h, "GPU");
     h.get_by_label_contains("Apple M4 Max");
 }
+
+#[test]
+fn battery_page_shown_only_with_battery() {
+    let h = harness(State::default());
+    assert!(h.query_by_label("Battery").is_none());
+
+    let s = State {
+        battery: Some(resources_mac::collect::battery::BatteryStat {
+            percent: 81.0,
+            health: 97.0,
+            cycles: Some(123),
+            state: "Charging".into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let mut h = harness(s);
+    open(&mut h, "Battery");
+    h.get_by_label_contains("Charging");
+    h.get_by_label("123");
+}

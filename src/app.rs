@@ -58,6 +58,9 @@ impl App {
             pages.push(Page::Gpu);
         }
         pages.extend([Page::Drives, Page::Network]);
+        if s.battery.is_some() {
+            pages.push(Page::Battery);
+        }
         pages
     }
 
@@ -101,11 +104,14 @@ impl App {
                             ui.weak("No GPU statistics available.");
                         }
                     },
+                    Page::Battery => match &s.battery {
+                        Some(b) => pages::battery::show(ui, b),
+                        None => {
+                            ui.weak("No battery found.");
+                        }
+                    },
                     Page::Drives => pages::drives::show(ui, &s),
                     Page::Network => pages::network::show(ui, &s),
-                    _ => {
-                        ui.weak("Collecting…");
-                    }
                 });
         });
     }

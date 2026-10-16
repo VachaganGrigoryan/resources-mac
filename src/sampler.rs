@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use sysinfo::{Disks, Networks, ProcessesToUpdate, System, Users};
 
 use crate::collect::apps::running_apps;
+use crate::collect::battery::{BatteryStat, read_battery};
 use crate::collect::gpu::{GpuStat, read_gpu};
 use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate};
 
@@ -52,6 +53,8 @@ pub struct State {
     pub apps: Vec<AppUsage>,
     /// `None` when this Mac exposes no GPU statistics; the page is then hidden.
     pub gpu: Option<GpuStat>,
+    /// `None` on Macs without a battery; the page is then hidden.
+    pub battery: Option<BatteryStat>,
 }
 
 pub struct Sampler {
@@ -197,6 +200,18 @@ impl Sampler {
                 g.mem_used = mem;
             }
             None => s.gpu = None,
+        }
+
+        match read_battery() {
+            Some((percent, health, cycles, state)) => {
+                let b = s.battery.get_or_insert_with(BatteryStat::default);
+                b.percent = percent;
+                b.health = health;
+                b.cycles = cycles;
+                b.state = state;
+                b.charge_hist.push(percent as f64);
+            }
+            None => s.battery = None,
         }
     }
 }
