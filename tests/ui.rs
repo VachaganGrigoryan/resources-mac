@@ -132,6 +132,10 @@ fn processes_search_filters_rows() {
     let mut h = harness(s);
     open(&mut h, "Processes");
     h.get_by_label("Finder");
+    // Search is hidden until the header's Search button (or Cmd+F) opens it, as in GNOME.
+    assert!(h.query_by_role(egui::accesskit::Role::TextInput).is_none());
+    h.get_by_label("Search").click();
+    h.run();
     h.get_by_role(egui::accesskit::Role::TextInput).focus();
     h.run();
     h.get_by_role(egui::accesskit::Role::TextInput)
@@ -151,7 +155,7 @@ fn ending_a_process_asks_for_confirmation() {
     open(&mut h, "Processes");
     h.get_by_label("Safari").click();
     h.run();
-    h.get_by_label("End").click();
+    h.get_by_label("End Process").click();
     h.run();
     h.get_by_label_contains("End \"Safari\"");
 }
@@ -172,8 +176,12 @@ fn apps_page_lists_apps() {
         }],
         ..Default::default()
     };
-    let h = harness(s);
-    h.get_by_label("Notes");
+    let mut h = harness(s);
+    h.get_by_label("Notes").click();
+    h.run();
+    h.get_by_label("End App").click();
+    h.run();
+    assert!(shows(&h, "End \"Notes\""));
 }
 
 #[test]

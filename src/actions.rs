@@ -8,6 +8,10 @@ pub enum Sig {
     Term,
     /// Immediate (SIGKILL); cannot be caught.
     Kill,
+    /// Pause (SIGSTOP); upstream's "Halt".
+    Stop,
+    /// Resume a paused process (SIGCONT).
+    Cont,
 }
 
 /// Sends `sig` to `pid`, returning the OS error text (e.g. "Operation not permitted") on failure.
@@ -20,6 +24,8 @@ pub fn signal(pid: u32, sig: Sig) -> Result<(), String> {
     let sig = match sig {
         Sig::Term => libc::SIGTERM,
         Sig::Kill => libc::SIGKILL,
+        Sig::Stop => libc::SIGSTOP,
+        Sig::Cont => libc::SIGCONT,
     };
     // SAFETY: kill(2) has no memory-safety preconditions.
     if unsafe { libc::kill(pid, sig) } == 0 {

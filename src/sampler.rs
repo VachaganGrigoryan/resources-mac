@@ -10,7 +10,9 @@ use crate::collect::apps::{app_icon, running_apps};
 use crate::collect::battery::{BatteryStat, read_battery};
 use crate::collect::gpu::{GpuStat, read_gpu};
 use crate::devices::parse_hardware_ports;
-use crate::sample::{AppUsage, History, ProcInfo, aggregate_apps, rate, rate_elapsed};
+use crate::sample::{
+    AppUsage, History, ProcInfo, aggregate_apps, rate, rate_elapsed, system_processes,
+};
 
 pub const INTERVAL: Duration = Duration::from_secs(1);
 
@@ -221,6 +223,7 @@ impl Sampler {
                 .clone();
         }
         s.apps = aggregate_apps(&apps, &s.procs);
+        s.apps.push(system_processes(&s.apps, &s.procs));
 
         match read_gpu() {
             Some((name, util, mem)) => {

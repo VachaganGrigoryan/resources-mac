@@ -10,7 +10,7 @@ use crate::icons;
 use crate::pages;
 use crate::sampler::{NetStat, State};
 use crate::theme::{color, palette};
-use crate::widgets::{Series, header_bar, page_column, sidebar_item};
+use crate::widgets::{Series, header_bar, icon_button, page_column, sidebar_item};
 
 /// Sidebar width, as in the GNOME screenshots.
 const SIDEBAR_W: f32 = 240.0;
@@ -201,7 +201,23 @@ impl App {
             .show(ui, |ui| {
                 let (title, subtitle) = self.title(&s);
                 ui.add_space(14.0);
+                let top = ui.cursor().min;
                 header_bar(ui, &title, subtitle.as_deref());
+                let search = match self.page {
+                    Page::Apps => Some(&mut self.apps.search),
+                    Page::Processes => Some(&mut self.procs.search),
+                    _ => None,
+                };
+                if let Some(search) = search {
+                    let at = egui::Rect::from_min_size(
+                        top + egui::vec2(12.0, -4.0),
+                        egui::vec2(32.0, 32.0),
+                    );
+                    let button = |ui: &mut Ui| icon_button(ui, icons::MAGNIFYING_GLASS, "Search");
+                    if ui.put(at, button).clicked() {
+                        search.toggle();
+                    }
+                }
                 ui.add_space(6.0);
                 match &self.page {
                     Page::Apps => self.apps.show(ui, &s),

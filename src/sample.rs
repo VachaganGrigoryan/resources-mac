@@ -134,6 +134,29 @@ pub fn aggregate_apps(apps: &[AppInfo], procs: &[ProcInfo]) -> Vec<AppUsage> {
         .collect()
 }
 
+/// Every process no app owns, as one row (upstream's "System Processes"). Its pid is 0,
+/// which no action accepts.
+pub fn system_processes(apps: &[AppUsage], procs: &[ProcInfo]) -> AppUsage {
+    let owned: HashSet<u32> = apps.iter().flat_map(|a| a.pids.iter().copied()).collect();
+    let mut usage = AppUsage {
+        app: AppInfo {
+            pid: 0,
+            name: "System Processes".into(),
+            bundle_id: None,
+            icon: None,
+        },
+        cpu: 0.0,
+        mem: 0,
+        pids: Vec::new(),
+    };
+    for p in procs.iter().filter(|p| !owned.contains(&p.pid)) {
+        usage.cpu += p.cpu;
+        usage.mem += p.mem;
+        usage.pids.push(p.pid);
+    }
+    usage
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,6 +244,25 @@ mod tests {
         let out = aggregate_apps(&[app(99), app(10)], &[proc(10, None, 1.0, 100)]);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].app.pid, 10);
+    }
+
+    #[test]
+    fn system_processes_collects_unowned_pids() {
+        let procs = [
+            proc(10, Some(1), 1.0, 100),
+            proc(11, Some(10), 2.0, 200),
+            proc(1, None, 0.5, 50),
+            proc(30, Some(1), 4.0, 400),
+        ];
+        let apps = aggregate_apps(&[app(10)], &procs);
+        let sys = system_processes(&apps, &procs);
+        assert_eq!(sys.app.name, "System Processes");
+        assert_eq!(sys.app.pid, 0);
+        let mut pids = sys.pids.clone();
+        pids.sort();
+        assert_eq!(pids, [1, 30]);
+        assert_eq!(sys.cpu, 4.5);
+        assert_eq!(sys.mem, 450);
     }
 
     #[test]
