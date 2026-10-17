@@ -4,7 +4,7 @@
 
 A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui), inspired by [GNOME Resources](https://apps.gnome.org/Resources/).
 
-Website: **[resources.notallow.cc](https://resources.notallow.cc)**
+Website: **[resources.vachagan.dev](https://resources.vachagan.dev)**
 
 ![Resources for Mac, Overview page](docs/screenshots/dark-overview.png)
 
@@ -93,7 +93,7 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 ## Website
 
-The project page ([resources.notallow.cc](https://resources.notallow.cc)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. After CI passes on `main`, `.github/workflows/deploy-site.yml` deploys it to the home server with `deploy/zimaos/compose.yaml`.
+The project page ([resources.vachagan.dev](https://resources.vachagan.dev)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. Vercel deploys `site/static/` and the screenshots from `main` as static files (see `vercel.json`). A self-hosted copy also runs on the home server: after CI passes, `.github/workflows/deploy-site.yml` deploys it with `deploy/zimaos/compose.yaml`.
 
 ## Limitations
 
