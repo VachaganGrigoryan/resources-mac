@@ -1,4 +1,5 @@
-# Project website on the ZimaOS server, behind its Cloudflare tunnel (resources.notallow.cc).
+# Project website on the ZimaOS server, behind its Cloudflare tunnel. Stopped: the site now runs on
+# Vercel (vercel.json) and deploy-site.yml is disabled in GitHub Actions; kept to bring it back.
 # .github/workflows/deploy-site.yml builds the image there and runs
 # `docker compose -p resources-site -f deploy/zimaos/compose.yaml up -d`.
 # The port listens on localhost only: the tunnel reaches it, the network does not.
