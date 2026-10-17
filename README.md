@@ -100,7 +100,7 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 ## Website
 
-The project page ([resources.vachagan.dev](https://resources.vachagan.dev)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. Vercel deploys `site/static/` and the screenshots from `main` as static files (see `vercel.json`). A self-hosted copy also runs on the home server: after CI passes, `.github/workflows/deploy-site.yml` deploys it with `deploy/zimaos/compose.yaml`.
+The project page ([resources.vachagan.dev](https://resources.vachagan.dev)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. Vercel deploys `site/static/` and the screenshots from `main` as static files (see `vercel.json`). The old self-hosted deploy (`.github/workflows/deploy-site.yml` with `deploy/zimaos/compose.yaml`) is kept but stopped: the workflow is disabled in GitHub Actions; enable it there to bring it back.
 
 ## Limitations
 

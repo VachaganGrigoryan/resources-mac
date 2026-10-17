@@ -4,6 +4,9 @@ name: Deploy site
 # starts it with deploy/zimaos/compose.yaml and checks it answers. A failed check brings the
 # previous image back.
 #
+# Disabled in GitHub Actions since the site moved to Vercel; `gh workflow enable deploy-site.yml`
+# brings it back.
+#
 # Runs on the self-hosted `resources` runner, so it must never run for pull requests: the repo is
 # public and fork PRs need approval in Settings → Actions → General.
 on:
