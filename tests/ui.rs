@@ -352,10 +352,38 @@ fn double_clicking_a_bubble_shows_its_process_tree() {
     assert!(h.query_by_label("Notes Helper").is_none());
 }
 
+/// Settings lives in the ☰ Main Menu, not the sidebar.
+fn open_settings(h: &mut Harness<'static, App>) {
+    h.get_by_label("Main Menu").click();
+    h.run();
+    h.get_by_label("Settings").click();
+    h.run();
+}
+
+#[test]
+fn settings_open_from_main_menu_not_sidebar() {
+    let mut h = harness(State::default());
+    assert!(h.query_by_label("Settings").is_none());
+    open_settings(&mut h);
+    h.get_by_label("Show stats in the menu bar");
+}
+
+#[test]
+fn appearance_chips_switch_theme() {
+    let mut h = harness(State::default());
+    open_settings(&mut h);
+    h.get_by_label_contains("Dark").click();
+    h.run();
+    assert_eq!(h.ctx.theme(), egui::Theme::Dark);
+    h.get_by_label_contains("Light").click();
+    h.run();
+    assert_eq!(h.ctx.theme(), egui::Theme::Light);
+}
+
 #[test]
 fn settings_choose_menu_bar_stats_with_preview() {
     let mut h = harness(State::default());
-    open(&mut h, "Settings");
+    open_settings(&mut h);
     h.get_by_label("Show stats in the menu bar");
     assert!(shows(
         &h,

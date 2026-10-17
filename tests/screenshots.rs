@@ -196,6 +196,11 @@ fn shoot(theme: egui::Theme, name: &str) {
         ("72 Wh Battery", "battery"),
         ("Settings", "settings"),
     ] {
+        // Settings sits in the Main Menu rather than the sidebar.
+        if label == "Settings" {
+            h.get_by_label("Main Menu").click();
+            h.run_steps(4);
+        }
         // Lower sidebar entries start scrolled out of the 680 px window.
         h.query_all_by_label(label)
             .next()

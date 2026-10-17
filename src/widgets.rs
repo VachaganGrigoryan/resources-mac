@@ -311,6 +311,18 @@ pub fn icon_button(ui: &mut Ui, icon: &str, label: &str) -> Response {
     resp
 }
 
+/// Full-width popup menu row: icon then label; screen readers and tests see `label`.
+pub fn menu_item(ui: &mut Ui, icon: &str, label: &str) -> Response {
+    let resp = ui.add(
+        egui::Button::new((RichText::new(icon).size(16.0), label))
+            .frame_when_inactive(false)
+            .min_size(vec2(ui.available_width(), 28.0))
+            .corner_radius(6),
+    );
+    resp.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, label));
+    resp
+}
+
 /// Red-tinted button for destructive actions such as "End App".
 pub fn destructive_button(ui: &mut Ui, label: &str, enabled: bool) -> Response {
     let red = crate::theme::DESTRUCTIVE;

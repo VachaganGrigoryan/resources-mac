@@ -37,10 +37,11 @@ fn main() -> eframe::Result {
             theme::apply(&cc.egui_ctx);
             let state = Arc::new(Mutex::new(State::default()));
             sampler::spawn(Arc::clone(&state), cc.egui_ctx.clone());
-            let settings = cc
+            let settings: Settings = cc
                 .storage
                 .and_then(|st| eframe::get_value(st, Settings::KEY))
                 .unwrap_or_default();
+            cc.egui_ctx.set_theme(settings.theme);
             Ok(Box::new(App::new(state).with_settings(settings)))
         }),
     )

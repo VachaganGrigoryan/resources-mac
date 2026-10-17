@@ -26,3 +26,6 @@ pub const CARET_DOWN: &str = "\u{E136}";
 pub const CIRCLES_THREE: &str = "\u{E192}";
 pub const ARROW_LEFT: &str = "\u{E058}";
 pub const CORNERS_OUT: &str = "\u{E1D0}";
+pub const SUN: &str = "\u{E472}";
+pub const MOON: &str = "\u{E330}";
+pub const DESKTOP: &str = "\u{E560}";
