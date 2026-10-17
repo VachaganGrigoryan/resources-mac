@@ -1,0 +1,11 @@
+# Upload only what the static site build needs (see vercel.json).
+/*
+!/vercel.json
+!/site
+/site/*
+!/site/static
+!/docs
+/docs/*
+!/docs/screenshots
+!/docs/icon.png
+!/docs/screenrecord

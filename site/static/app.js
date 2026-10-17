@@ -9,6 +9,13 @@ const shot = document.getElementById("shot");
 const caption = document.getElementById("caption");
 let current = tabs[0];
 
+// No autoplaying motion for reduced-motion users: stop the demo and let them start it.
+if (still) {
+  const demo = document.getElementById("demo");
+  demo.pause();
+  demo.controls = true;
+}
+
 const theme = () => root.dataset.theme || (darkQuery.matches ? "dark" : "light");
 
 // Crossfades to `src`; the fade-in happens once the new image has loaded.

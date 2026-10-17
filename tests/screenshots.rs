@@ -226,3 +226,136 @@ fn screenshots_light() {
 fn screenshots_dark() {
     shoot(egui::Theme::Dark, "dark");
 }
+
+const FPS: f32 = 15.0;
+
+/// Shift a full history by one sample so its graph scrolls in a seamless loop.
+fn spin(h: &mut History) {
+    let first = h.values().next();
+    if let Some(v) = first {
+        h.push(v);
+    }
+}
+
+fn spin_all(s: &mut State) {
+    spin(&mut s.cpu_total);
+    s.cpu_cores.iter_mut().for_each(spin);
+    spin(&mut s.mem_hist);
+    spin(&mut s.swap_hist);
+    for d in &mut s.disks {
+        spin(&mut d.read_hist);
+        spin(&mut d.write_hist);
+    }
+    for n in s.nets.iter_mut().chain(s.vpn.as_mut()) {
+        spin(&mut n.rx_hist);
+        spin(&mut n.tx_hist);
+    }
+    if let Some(g) = &mut s.gpu {
+        spin(&mut g.util_hist);
+    }
+    if let Some(b) = &mut s.battery {
+        spin(&mut b.charge_hist);
+        spin(&mut b.power_hist);
+    }
+    s.ticks += 1;
+}
+
+/// Records a walkthrough as numbered PNG frames, with a gliding cursor and graphs that keep moving.
+struct Demo {
+    h: Harness<'static, App>,
+    state: Arc<Mutex<State>>,
+    dir: std::path::PathBuf,
+    frame: usize,
+    cursor: egui::Pos2,
+}
+
+impl Demo {
+    fn step(&mut self) {
+        // About 4x real time: a new sample every 4 frames.
+        if self.frame.is_multiple_of(4) {
+            spin_all(&mut self.state.lock().unwrap());
+        }
+        self.h.step();
+        let img = self.h.render().expect("render");
+        img.save(self.dir.join(format!("{:04}.png", self.frame)))
+            .unwrap();
+        self.frame += 1;
+    }
+
+    fn hold(&mut self, secs: f32) {
+        for _ in 0..(secs * FPS) as usize {
+            self.step();
+        }
+    }
+
+    /// Glide to the first widget labelled `label` (in the sidebar if `side`) and click it.
+    fn click(&mut self, label: &str, side: Option<bool>) {
+        let to = self
+            .h
+            .query_all_by_label_contains(label)
+            .map(|n| n.rect().center())
+            .find(|p| side.is_none_or(|s| (p.x < 250.0) == s))
+            .expect(label);
+        let from = self.cursor;
+        for i in 1..=10 {
+            let t = i as f32 / 10.0;
+            let pos = from.lerp(to, t * t * (3.0 - 2.0 * t));
+            self.h.event(egui::Event::PointerMoved(pos));
+            self.step();
+        }
+        for pressed in [true, false] {
+            self.h.event(egui::Event::PointerButton {
+                pos: to,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::default(),
+            });
+            self.step();
+        }
+        self.cursor = to;
+    }
+}
+
+#[test]
+#[ignore = "writes target/demo frames; encode with ffmpeg"]
+fn demo_frames() {
+    let state = Arc::new(Mutex::new(sample_state()));
+    let h = Harness::builder()
+        .with_size([1000.0, 680.0])
+        .with_pixels_per_point(2.0)
+        .with_theme(egui::Theme::Dark)
+        .with_step_dt(1.0 / FPS)
+        .with_context_setup(|ctx| {
+            resources_mac::theme::apply(ctx);
+            ctx.set_theme(egui::Theme::Dark);
+        })
+        .wgpu()
+        .build_ui_state(|ui, app: &mut App| app.show(ui), App::new(state.clone()));
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/demo");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cursor = egui::pos2(700.0, 450.0);
+    h.event(egui::Event::PointerMoved(cursor));
+    let mut d = Demo {
+        h,
+        state,
+        dir,
+        frame: 0,
+        cursor,
+    };
+    d.hold(2.5);
+    d.click("Processor", Some(false));
+    d.hold(2.0);
+    for page in ["Apps", "Processes", "Processor", "Memory"] {
+        d.click(page, Some(true));
+        d.hold(1.8);
+    }
+    d.click("Main Menu", None);
+    d.hold(0.5);
+    d.click("Settings", None);
+    d.hold(0.8);
+    d.click("Light", Some(false));
+    d.hold(1.5);
+    d.click("Overview", Some(true));
+    d.hold(3.0);
+}

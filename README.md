@@ -4,9 +4,9 @@
 
 A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui), inspired by [GNOME Resources](https://apps.gnome.org/Resources/).
 
-Website: **[resources.notallow.cc](https://resources.notallow.cc)**
+Website: **[resources.vachagan.dev](https://resources.vachagan.dev)**
 
-![Resources for Mac, Overview page](docs/screenshots/dark-overview.png)
+![Resources for Mac, a walkthrough of its pages](docs/screenrecord/resources-mac-demo.gif)
 
 - **Overview** (main page): every app as a bubble around "This Mac" (processor and memory rings), sized by memory or processor, its processes packed inside, ring coloured by load; lines show which app launched which. Pan, pinch to zoom, double-click a bubble for that app's process tree; End / Kill / Halt / Continue from the bottom bar
 - **Menu bar:** chosen stats (`CPU 23% · MEM 61%`) with a menu of all current values; closing the window keeps Resources running there
@@ -69,10 +69,17 @@ The app icon is drawn in code; to regenerate `macos/AppIcon.icns` and the PNGs a
 swift scripts/icon.swift
 ```
 
-To regenerate the screenshots in `docs/screenshots/` (every page, light and dark, from sample data):
+To regenerate the screenshots in `docs/screenshots/` (every page, light and dark, from sample data) and the demo frames in `target/demo/`:
 
 ```sh
 cargo test --test screenshots -- --ignored
+```
+
+Encode the demo frames into `docs/screenrecord/` (mp4 for the website, GIF for this README):
+
+```sh
+ffmpeg -framerate 15 -i target/demo/%04d.png -vf scale=1200:-2 -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/screenrecord/resources-mac-demo.mp4
+ffmpeg -framerate 15 -i target/demo/%04d.png -vf "fps=12,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" docs/screenrecord/resources-mac-demo.gif
 ```
 
 To build the universal `.app` and `.dmg` locally:
@@ -93,7 +100,7 @@ scripts/bundle.sh 0.1.0   # → dist/Resources.app, dist/resources-mac-0.1.0.dmg
 
 ## Website
 
-The project page ([resources.notallow.cc](https://resources.notallow.cc)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. After CI passes on `main`, `.github/workflows/deploy-site.yml` deploys it to the home server with `deploy/zimaos/compose.yaml`.
+The project page ([resources.vachagan.dev](https://resources.vachagan.dev)) lives in [`site/`](site): a small Rust (axum) server for `site/static/` plus the screenshots in `docs/`. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. Vercel deploys `site/static/` and the screenshots from `main` as static files (see `vercel.json`). A self-hosted copy also runs on the home server: after CI passes, `.github/workflows/deploy-site.yml` deploys it with `deploy/zimaos/compose.yaml`.
 
 ## Limitations
 
