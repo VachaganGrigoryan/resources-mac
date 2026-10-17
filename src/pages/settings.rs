@@ -1,9 +1,10 @@
 //! Settings page: which stats go into the menu bar and the desktop widget, with suggestions
 //! based on what this Mac is doing right now.
 
-use egui::{Align, Layout, RichText, Ui};
+use egui::{Align, Layout, RichText, ThemePreference, Ui};
 use serde::{Deserialize, Serialize};
 
+use crate::icons;
 use crate::sampler::State;
 use crate::stats::{self, Stat};
 use crate::widgets::{card, group};
@@ -19,6 +20,7 @@ pub struct Settings {
     pub widget_stats: Vec<Stat>,
     /// Desktop widget's top-left corner in screen points; `None` until it is first moved.
     pub widget_pos: Option<[f32; 2]>,
+    pub theme: ThemePreference,
 }
 
 impl Settings {
@@ -33,6 +35,7 @@ impl Default for Settings {
             widget: false,
             widget_stats: vec![Stat::Cpu, Stat::Memory, Stat::Network],
             widget_pos: None,
+            theme: ThemePreference::System,
         }
     }
 }
@@ -66,6 +69,27 @@ fn hint(ui: &mut Ui, text: &str) {
 }
 
 pub fn show(ui: &mut Ui, settings: &mut Settings, s: &State) {
+    group(ui, "Appearance", |ui| {
+        card(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                for (theme, icon, label) in [
+                    (ThemePreference::System, icons::DESKTOP, "System"),
+                    (ThemePreference::Light, icons::SUN, "Light"),
+                    (ThemePreference::Dark, icons::MOON, "Dark"),
+                ] {
+                    let chip = egui::Button::selectable(
+                        settings.theme == theme,
+                        format!("{icon}  {label}"),
+                    )
+                    .corner_radius(14);
+                    if ui.add(chip).clicked() {
+                        settings.theme = theme;
+                        ui.ctx().set_theme(theme);
+                    }
+                }
+            });
+        });
+    });
     group(ui, "Menu Bar", |ui| {
         card(ui, |ui| {
             ui.checkbox(&mut settings.menu_bar, "Show stats in the menu bar");
@@ -143,5 +167,6 @@ mod tests {
         let s: Settings = ron::from_str("(widget: true)").unwrap();
         assert!(s.widget);
         assert_eq!(s.menu_bar_stats, Settings::default().menu_bar_stats);
+        assert_eq!(s.theme, ThemePreference::System);
     }
 }

@@ -15,7 +15,7 @@ use crate::pages::settings::Settings;
 use crate::sampler::{NetStat, State};
 use crate::stats::{self, Stat};
 use crate::theme::{self, color, palette};
-use crate::widgets::{Series, header_bar, icon_button, page_column, sidebar_item};
+use crate::widgets::{Series, header_bar, icon_button, menu_item, page_column, sidebar_item};
 
 /// Sidebar width, as in the GNOME screenshots.
 const SIDEBAR_W: f32 = 240.0;
@@ -150,12 +150,6 @@ fn entries(s: &State) -> Vec<Entry<'_>> {
             graph: Some((vec![(&b.charge_hist, color::BATTERY)], Some(100.0))),
         });
     }
-    out.push(Entry {
-        page: Page::Settings,
-        icon: icons::GEAR_SIX,
-        label: "Settings".into(),
-        graph: None,
-    });
     out
 }
 
@@ -242,7 +236,8 @@ impl App {
         let s = state.lock().unwrap_or_else(|e| e.into_inner());
         let entries = entries(&s);
         // A drive was ejected or an interface went away while its page was open.
-        if !entries.iter().any(|e| e.page == self.page) {
+        // Settings opens from the Main Menu, so it has no sidebar entry.
+        if self.page != Page::Settings && !entries.iter().any(|e| e.page == self.page) {
             self.page = Page::Overview;
         }
         let p = palette(ui.visuals());
@@ -264,7 +259,13 @@ impl App {
                 );
                 let menu = ui.put(at, |ui: &mut Ui| icon_button(ui, icons::LIST, "Main Menu"));
                 egui::Popup::menu(&menu).show(|ui| {
-                    if ui.button("About Resources").clicked() {
+                    ui.set_width(200.0);
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    if menu_item(ui, icons::GEAR_SIX, "Settings").clicked() {
+                        self.page = Page::Settings;
+                    }
+                    ui.separator();
+                    if menu_item(ui, icons::INFO, "About Resources").clicked() {
                         self.about = true;
                     }
                 });
