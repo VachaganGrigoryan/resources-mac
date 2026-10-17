@@ -6,7 +6,7 @@ A macOS system monitor written in Rust with [egui](https://github.com/emilk/egui
 
 Website: **[resources.vachagan.dev](https://resources.vachagan.dev)**
 
-![Resources for Mac, Overview page](docs/screenshots/dark-overview.png)
+![Resources for Mac, a walkthrough of its pages](docs/screenrecord/resources-mac-demo.gif)
 
 - **Overview** (main page): every app as a bubble around "This Mac" (processor and memory rings), sized by memory or processor, its processes packed inside, ring coloured by load; lines show which app launched which. Pan, pinch to zoom, double-click a bubble for that app's process tree; End / Kill / Halt / Continue from the bottom bar
 - **Menu bar:** chosen stats (`CPU 23% · MEM 61%`) with a menu of all current values; closing the window keeps Resources running there
@@ -69,10 +69,17 @@ The app icon is drawn in code; to regenerate `macos/AppIcon.icns` and the PNGs a
 swift scripts/icon.swift
 ```
 
-To regenerate the screenshots in `docs/screenshots/` (every page, light and dark, from sample data):
+To regenerate the screenshots in `docs/screenshots/` (every page, light and dark, from sample data) and the demo frames in `target/demo/`:
 
 ```sh
 cargo test --test screenshots -- --ignored
+```
+
+Encode the demo frames into `docs/screenrecord/` (mp4 for the website, GIF for this README):
+
+```sh
+ffmpeg -framerate 15 -i target/demo/%04d.png -vf scale=1200:-2 -c:v libx264 -pix_fmt yuv420p -movflags +faststart docs/screenrecord/resources-mac-demo.mp4
+ffmpeg -framerate 15 -i target/demo/%04d.png -vf "fps=12,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" docs/screenrecord/resources-mac-demo.gif
 ```
 
 To build the universal `.app` and `.dmg` locally:

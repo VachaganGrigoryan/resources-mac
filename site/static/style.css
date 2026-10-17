@@ -165,6 +165,10 @@ h1 {
 .view img.out { opacity: 0; }
 .view figcaption { color: var(--dim); max-width: 40em; min-height: 4.8em; }
 
+/* Demo recording, framed like the screenshots. */
+.demo { margin: 0 0 44px; }
+.demo video { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--border); }
+
 /* Install: one card, methods separated by hairlines (the app's preferences-group look). */
 .install { max-width: 760px; padding-block: 80px 24px; }
 h2 { font-size: 2rem; letter-spacing: -0.02em; margin: 0 0 16px; }

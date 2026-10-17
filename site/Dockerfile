@@ -1,5 +1,5 @@
 # Project website image. Build from the repo root: docker build -f site/Dockerfile .
-# Only site/ and the app screenshots and icon enter the build (see /.dockerignore).
+# Only site/, the app screenshots, icon and demo video enter the build (see /.dockerignore).
 FROM rust:1-slim-bookworm AS build
 WORKDIR /src
 COPY site/Cargo.toml site/Cargo.lock ./
@@ -11,6 +11,7 @@ COPY --from=build /src/target/release/resources-site /resources-site
 COPY site/static /srv/static
 COPY docs/screenshots /srv/static/screenshots
 COPY docs/icon.png /srv/static/icon.png
+COPY docs/screenrecord/resources-mac-demo.mp4 /srv/static/screenrecord/resources-mac-demo.mp4
 ENV SITE_DIR=/srv/static SITE_ADDR=0.0.0.0:8080
 EXPOSE 8080
 ENTRYPOINT ["/resources-site"]
