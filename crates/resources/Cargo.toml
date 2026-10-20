@@ -24,6 +24,6 @@ sysinfo = "0.39"
 
 [dev-dependencies]
 resources-ui = { workspace = true, features = ["test-support"] }
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+egui_kittest = { workspace = true, features = ["wgpu"] }
 ron = "0.12"
 tempfile.workspace = true

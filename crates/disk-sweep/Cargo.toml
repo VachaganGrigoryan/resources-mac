@@ -23,5 +23,5 @@ trash = "5"
 
 [dev-dependencies]
 resources-ui = { workspace = true, features = ["test-support"] }
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+egui_kittest = { workspace = true, features = ["wgpu"] }
 tempfile.workspace = true
