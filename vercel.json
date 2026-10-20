@@ -4,7 +4,6 @@
   "installCommand": "",
   "buildCommand": "sh site/build.sh",
   "outputDirectory": "public",
-  "git": { "deploymentEnabled": { "main": false } },
   "headers": [
     {
       "source": "/(.*)",

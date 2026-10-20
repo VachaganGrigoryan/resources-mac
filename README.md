@@ -119,11 +119,11 @@ scripts/bundle.sh 0.1.0   # → dist/{Resources,Disk Sweep}.app, dist/{resources
 1. Bump `version` under `[workspace.package]` in the root `Cargo.toml` (one version for both apps) and commit.
 2. `git tag v0.1.0 && git push --tags`.
 3. The **Release** workflow builds both universal dmgs, attaches them to a draft GitHub release and updates both casks in [`homebrew-tap`](https://github.com/VachaganGrigoryan/homebrew-tap). This needs the repository secret `HOMEBREW_TAP_DEPLOY_KEY`: the private half of an SSH deploy key that has write access to `homebrew-tap` only.
-4. Publish the draft release. The cask URLs work only after the release is published, and publishing it also deploys the website (the **Site** workflow).
+4. Publish the draft release. The cask URLs work only after the release is published.
 
 ## Website
 
-The website ([resources.vachagan.dev](https://resources.vachagan.dev)) lives in [`site/`](site): a home page for both apps plus `/resources/` and `/disk-sweep/`, served by a small Rust (axum) server from `site/static/` with the screenshots and icons in `docs/`. Its tests fail when a page references a missing screenshot or icon. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. Production deploys run from the **Site** workflow when a release is published, or by hand from the Actions tab, so the site never offers a download that isn't out yet. It needs the repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` (the last two are in `.vercel/project.json` after `vercel link`). Pushes to `main` no longer deploy; pull requests still get Vercel preview URLs (see `vercel.json`). The old self-hosted deploy (`.github/workflows/deploy-site.yml` with `deploy/zimaos/compose.yaml`) is kept but stopped: the workflow is disabled in GitHub Actions; enable it there to bring it back.
+The website ([resources.vachagan.dev](https://resources.vachagan.dev)) lives in [`site/`](site): a home page for both apps plus `/resources/` and `/disk-sweep/`, served by a small Rust (axum) server from `site/static/` with the screenshots and icons in `docs/`. Its tests fail when a page references a missing screenshot or icon. Preview it with `docker build -f site/Dockerfile -t resources-site . && docker run --rm -p 8080:8080 resources-site`. Vercel deploys it from `main` (pull requests get preview URLs) by running `site/build.sh` (see `vercel.json`). The old self-hosted deploy (`.github/workflows/deploy-site.yml` with `deploy/zimaos/compose.yaml`) is kept but stopped: the workflow is disabled in GitHub Actions; enable it there to bring it back.
 
 ## Limitations
 
