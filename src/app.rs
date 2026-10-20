@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use egui::{Frame, RichText, Ui, ViewportCommand};
 use objc2::MainThreadMarker;
 
+use crate::actions;
 use crate::desktop_widget;
 use crate::devices::{self, battery_display_name, drive_display_name, net_display_name};
 use crate::icons;
@@ -165,6 +166,8 @@ pub struct App {
     /// Sample the desktop widget last asked a hidden-window pass for.
     widget_tick: u64,
     about: bool,
+    /// Why "Free Up Space…" couldn't open Disk Sweep, shown on the Drives page.
+    launch_error: Option<String>,
 }
 
 impl App {
@@ -179,6 +182,7 @@ impl App {
             menubar: None,
             widget_tick: 0,
             about: false,
+            launch_error: None,
         }
     }
 
@@ -329,7 +333,7 @@ impl App {
                         egui::ScrollArea::vertical()
                             .auto_shrink(false)
                             .show(ui, |ui| {
-                                page_column(ui, |ui| detail(ui, page, &s));
+                                page_column(ui, |ui| detail(ui, page, &s, &mut self.launch_error));
                                 ui.add_space(24.0);
                             });
                     }
@@ -413,7 +417,7 @@ fn about(ui: &Ui) -> bool {
 }
 
 /// Body of a resource page; the device pages look their device up by key.
-fn detail(ui: &mut Ui, page: &Page, s: &State) {
+fn detail(ui: &mut Ui, page: &Page, s: &State, launch_error: &mut Option<String>) {
     match page {
         Page::Cpu => pages::cpu::show(ui, s),
         Page::Memory => pages::memory::show(ui, s),
@@ -424,7 +428,10 @@ fn detail(ui: &mut Ui, page: &Page, s: &State) {
         }
         Page::Drive(mount) => {
             if let Some(d) = s.disks.iter().find(|d| &d.mount == mount) {
-                pages::drives::show(ui, d);
+                let free_up = actions::disk_sweep().map(|_| launch_error.as_deref());
+                if pages::drives::show(ui, d, free_up) {
+                    *launch_error = actions::open_disk_sweep().err();
+                }
             }
         }
         Page::Network(name) => {

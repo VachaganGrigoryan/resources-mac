@@ -24,6 +24,7 @@ sysinfo = "0.39"
 [dev-dependencies]
 egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"] }
 ron = "0.12"
+tempfile = "3"
 
 [profile.release]
 lto = true

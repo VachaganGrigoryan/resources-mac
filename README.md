@@ -43,6 +43,8 @@ A second app in this repo (`crates/disk-sweep`): pick folders such as `~/WS`, se
 cargo run -p disk-sweep --release
 ```
 
+Resources links to it: each drive page has **Free Up Space…**, shown when Disk Sweep is built next to Resources (`cargo build --release --workspace`), installed as `Disk Sweep.app` in Applications, or on your `PATH`. The release `Resources.app` doesn't bundle it yet, so there the button stays hidden.
+
 ## Install
 
 ```sh

@@ -1,7 +1,7 @@
 use std::os::unix::process::ExitStatusExt;
 use std::process::Command;
 
-use resources_mac::actions::{Sig, signal};
+use resources_mac::actions::{Launch, Sig, locate, signal};
 use resources_mac::collect::apps::running_apps;
 
 #[test]
@@ -57,4 +57,64 @@ fn stop_and_cont_signal_child() {
 
     child.kill().unwrap();
     child.wait().unwrap();
+}
+
+/// A fake install: `resources-mac` in `bin/`, optionally `disk-sweep` beside it, an app
+/// folder and a PATH folder.
+struct Layout {
+    dir: tempfile::TempDir,
+}
+
+impl Layout {
+    fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        for d in ["bin", "apps", "path"] {
+            std::fs::create_dir(dir.path().join(d)).unwrap();
+        }
+        std::fs::write(dir.path().join("bin/resources-mac"), "").unwrap();
+        Self { dir }
+    }
+    fn at(&self, rel: &str) -> std::path::PathBuf {
+        self.dir.path().join(rel)
+    }
+    fn locate(&self) -> Option<Launch> {
+        let path_var = self.at("path").into_os_string();
+        locate(
+            &self.at("bin/resources-mac"),
+            &[self.at("apps")],
+            Some(&path_var),
+        )
+    }
+}
+
+#[test]
+fn locate_prefers_sibling_binary() {
+    let l = Layout::new();
+    std::fs::write(l.at("bin/disk-sweep"), "").unwrap();
+    std::fs::create_dir(l.at("apps/Disk Sweep.app")).unwrap();
+    std::fs::write(l.at("path/disk-sweep"), "").unwrap();
+    assert_eq!(l.locate(), Some(Launch::Binary(l.at("bin/disk-sweep"))));
+}
+
+#[test]
+fn locate_finds_app_bundle() {
+    let l = Layout::new();
+    std::fs::create_dir(l.at("apps/Disk Sweep.app")).unwrap();
+    std::fs::write(l.at("path/disk-sweep"), "").unwrap();
+    assert_eq!(l.locate(), Some(Launch::App(l.at("apps/Disk Sweep.app"))));
+}
+
+#[test]
+fn locate_falls_back_to_path() {
+    let l = Layout::new();
+    std::fs::write(l.at("path/disk-sweep"), "").unwrap();
+    assert_eq!(l.locate(), Some(Launch::Binary(l.at("path/disk-sweep"))));
+}
+
+#[test]
+fn locate_none_when_missing() {
+    let l = Layout::new();
+    // A folder named like the binary is not the binary.
+    std::fs::create_dir(l.at("bin/disk-sweep")).unwrap();
+    assert_eq!(l.locate(), None);
 }

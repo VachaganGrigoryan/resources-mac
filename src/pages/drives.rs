@@ -1,10 +1,13 @@
 use egui::Ui;
 
+use crate::icons;
 use crate::sampler::DiskStat;
 use crate::theme::color;
-use crate::widgets::{Item, boxed_list, fmt_bytes, fmt_rate_highest, group};
+use crate::widgets::{Item, boxed_list, card, fmt_bytes, fmt_rate_highest, group};
 
-pub fn show(ui: &mut Ui, d: &DiskStat) {
+/// `free_up`: `None` when Disk Sweep isn't found (no button), else the last launch error.
+/// Returns true when "Free Up Space…" was clicked.
+pub fn show(ui: &mut Ui, d: &DiskStat, free_up: Option<Option<&str>>) -> bool {
     group(ui, "Usage", |ui| {
         boxed_list(
             ui,
@@ -47,4 +50,17 @@ pub fn show(ui: &mut Ui, d: &DiskStat) {
             ],
         );
     });
+    let Some(error) = free_up else {
+        return false;
+    };
+    group(ui, "Free Up Space", |ui| {
+        card(ui, |ui| {
+            ui.label("Find caches, build output and Docker data to clean up in Disk Sweep.");
+            if let Some(e) = error {
+                ui.colored_label(ui.visuals().error_fg_color, e);
+            }
+            ui.button(format!("{}  Free Up Space…", icons::BROOM))
+                .clicked()
+        })
+    })
 }
