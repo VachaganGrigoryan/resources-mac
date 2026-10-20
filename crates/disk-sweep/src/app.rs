@@ -152,7 +152,10 @@ impl App {
                                     action = pages::settings::show(ui, &mut self.settings)
                                         .map(Action::Settings);
                                 }
-                                Page::Overview | Page::Docker => {}
+                                Page::Overview => {
+                                    action = pages::overview::show(ui, &s).map(Action::Open);
+                                }
+                                Page::Docker => {}
                             });
                             ui.add_space(24.0);
                         });

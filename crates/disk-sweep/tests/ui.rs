@@ -155,3 +155,26 @@ fn trash_asks_for_confirmation_first() {
     h.run();
     assert!(!shows(&h, "Move 1 item"));
 }
+
+#[test]
+fn overview_shows_totals() {
+    let state = State {
+        roots: vec![scanned("/tmp/sweep-o1"), scanned("/tmp/sweep-o2")],
+        ..State::default()
+    };
+    let h = harness(state, Settings::default());
+    // Overview is the first page; two folders with 5 GB of caches each.
+    assert!(shows(&h, "Reclaimable"));
+    assert!(shows(&h, "10.00 GB"));
+    assert!(shows(&h, "sweep-o1"));
+    assert!(shows(&h, "Top suggestions"));
+}
+
+#[test]
+fn overview_empty_state_links_to_settings() {
+    let mut h = harness(State::default(), Settings::default());
+    assert!(shows(&h, "Add a folder in Settings to start"));
+    h.get_by_label("Open Settings").click();
+    h.run();
+    assert!(shows(&h, "Add Folder"));
+}
