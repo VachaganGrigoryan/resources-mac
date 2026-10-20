@@ -178,3 +178,56 @@ fn overview_empty_state_links_to_settings() {
     h.run();
     assert!(shows(&h, "Add Folder"));
 }
+
+fn docker_state(docker: Result<disk_sweep::docker::Usage, String>) -> Harness<'static, App> {
+    let state = State {
+        docker: Some(docker),
+        ..State::default()
+    };
+    let mut h = harness(state, Settings::default());
+    open(&mut h, "Docker");
+    h
+}
+
+fn usage() -> disk_sweep::docker::Usage {
+    disk_sweep::docker::parse_df(
+        r#"{"Images":[{"Containers":"0","Repository":"<none>","Tag":"<none>","Size":"1.2GB","UniqueSize":"1GB","CreatedSince":"2 months ago"}],
+            "Containers":[{"Names":"old","Image":"node:20","Size":"10MB","State":"exited","Status":"Exited (0) 2 days ago"}],
+            "Volumes":[{"Name":"orphan-volume","Links":"0","Size":"72MB"}],
+            "BuildCache":[]}"#,
+        r#"{"Active":"0","Reclaimable":"1GB (100%)","Size":"1.2GB","TotalCount":"1","Type":"Images"}"#,
+    )
+    .unwrap()
+}
+
+#[test]
+fn docker_page_shows_reclaimable() {
+    let h = docker_state(Ok(usage()));
+    for text in [
+        "Unused volumes",
+        "72.00 MB",
+        "Stopped containers",
+        "Images",
+        "1.20 GB",
+    ] {
+        assert!(shows(&h, text), "missing {text}");
+    }
+}
+
+#[test]
+fn docker_page_shows_error() {
+    let h = docker_state(Err("Cannot connect to the Docker daemon".into()));
+    assert!(shows(&h, "Cannot connect to the Docker daemon"));
+    assert!(shows(&h, "Retry"));
+}
+
+#[test]
+fn prune_asks_for_confirmation_first() {
+    let mut h = docker_state(Ok(usage()));
+    h.get_by_label("Remove unused volumes").click();
+    h.run();
+    assert!(shows(&h, "docker volume prune -a -f"));
+    h.get_by_label("Cancel").click();
+    h.run();
+    assert!(!shows(&h, "docker volume prune -a -f"));
+}

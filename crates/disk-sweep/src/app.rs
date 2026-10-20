@@ -11,6 +11,7 @@ use resources_mac::theme::palette;
 use resources_mac::widgets::{header_bar, page_column, sidebar_item};
 
 use crate::pages;
+use crate::pages::docker::{DockerAction, DockerView};
 use crate::pages::folder::FolderView;
 use crate::pages::settings::{Settings, SettingsAction};
 use crate::worker::{self, Shared};
@@ -31,6 +32,7 @@ pub enum Action {
     Open(Page),
     Settings(SettingsAction),
     Trash(PathBuf, Vec<PathBuf>),
+    Docker(DockerAction),
 }
 
 fn folder_label(root: &std::path::Path) -> String {
@@ -45,6 +47,7 @@ pub struct App {
     page: Page,
     settings: Settings,
     folders: HashMap<PathBuf, FolderView>,
+    docker: DockerView,
 }
 
 impl App {
@@ -54,6 +57,7 @@ impl App {
             page: Page::Overview,
             settings: Settings::default(),
             folders: HashMap::new(),
+            docker: DockerView::default(),
         }
     }
 
@@ -155,7 +159,10 @@ impl App {
                                 Page::Overview => {
                                     action = pages::overview::show(ui, &s).map(Action::Open);
                                 }
-                                Page::Docker => {}
+                                Page::Docker => {
+                                    action = pages::docker::show(ui, &mut self.docker, &s)
+                                        .map(Action::Docker);
+                                }
                             });
                             ui.add_space(24.0);
                         });
@@ -169,6 +176,12 @@ impl App {
             Some(Action::Settings(SettingsAction::Removed(root))) => {
                 worker::remove_root(&self.shared, &root);
                 self.folders.remove(&root);
+            }
+            Some(Action::Docker(DockerAction::Refresh)) => {
+                worker::refresh_docker(&self.shared, ctx);
+            }
+            Some(Action::Docker(DockerAction::Prune(p))) => {
+                self.docker.pending = Some(worker::prune_then_refresh(&self.shared, p, ctx));
             }
             Some(Action::Trash(root, paths)) => {
                 let rx = worker::trash_then_rescan(&self.shared, root.clone(), paths, ctx);
