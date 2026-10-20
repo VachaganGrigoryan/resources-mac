@@ -1,6 +1,7 @@
 //! Window layout: sidebar of pages on the left, the selected page on the right under a
 //! header bar, as in Resources.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -10,6 +11,7 @@ use resources_mac::theme::palette;
 use resources_mac::widgets::{header_bar, page_column, sidebar_item};
 
 use crate::pages;
+use crate::pages::folder::FolderView;
 use crate::pages::settings::{Settings, SettingsAction};
 use crate::worker::{self, Shared};
 
@@ -28,6 +30,7 @@ pub enum Page {
 pub enum Action {
     Open(Page),
     Settings(SettingsAction),
+    Trash(PathBuf, Vec<PathBuf>),
 }
 
 fn folder_label(root: &std::path::Path) -> String {
@@ -41,6 +44,7 @@ pub struct App {
     shared: Shared,
     page: Page,
     settings: Settings,
+    folders: HashMap<PathBuf, FolderView>,
 }
 
 impl App {
@@ -49,6 +53,7 @@ impl App {
             shared,
             page: Page::Overview,
             settings: Settings::default(),
+            folders: HashMap::new(),
         }
     }
 
@@ -121,13 +126,26 @@ impl App {
                     };
                     header_bar(ui, &title, subtitle.as_deref());
                     ui.add_space(6.0);
+                    let folder = match &self.page {
+                        Page::Folder(root) => s.roots.iter().find(|r| &r.root == root),
+                        _ => None,
+                    };
+                    if let Some(scan) = folder {
+                        let view = self.folders.entry(scan.root.clone()).or_default();
+                        view.sync(scan);
+                        if let Some(paths) = pages::folder::bar(ui, view, scan) {
+                            action = Some(Action::Trash(scan.root.clone(), paths));
+                        }
+                    }
                     egui::ScrollArea::vertical()
                         .auto_shrink(false)
                         .show(ui, |ui| {
                             page_column(ui, |ui| match &self.page {
-                                Page::Folder(root) => {
-                                    if let Some(scan) = s.roots.iter().find(|r| &r.root == root) {
-                                        pages::folder::show(ui, scan);
+                                Page::Folder(_) => {
+                                    if let Some(scan) = folder {
+                                        let view =
+                                            self.folders.entry(scan.root.clone()).or_default();
+                                        pages::folder::show(ui, view, scan);
                                     }
                                 }
                                 Page::Settings => {
@@ -147,6 +165,11 @@ impl App {
             }
             Some(Action::Settings(SettingsAction::Removed(root))) => {
                 worker::remove_root(&self.shared, &root);
+                self.folders.remove(&root);
+            }
+            Some(Action::Trash(root, paths)) => {
+                let rx = worker::trash_then_rescan(&self.shared, root.clone(), paths, ctx);
+                self.folders.entry(root).or_default().pending = Some(rx);
             }
             None => {}
         }

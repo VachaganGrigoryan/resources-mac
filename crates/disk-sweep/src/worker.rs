@@ -170,3 +170,15 @@ pub fn prune_then_refresh(
     });
     rx
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trash_reports_missing_path() {
+        let err = trash_paths(&[PathBuf::from("/nonexistent/disk-sweep-zzz")]).unwrap_err();
+        assert!(err.contains("/nonexistent/disk-sweep-zzz"), "{err}");
+        assert!(err.contains("no longer exists"), "{err}");
+    }
+}
