@@ -1,26 +1,27 @@
 [package]
 name = "disk-sweep"
-version = "0.1.0"
-edition = "2024"
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Disk clean-up for developer workspaces and Docker, in the Resources style"
-repository = "https://github.com/VachaganGrigoryan/resources-mac"
+repository.workspace = true
 
 [[bin]]
 name = "disk-sweep"
 path = "src/main.rs"
 
 [dependencies]
-resources-mac = { path = "../.." }
-eframe = { version = "0.37", features = ["persistence"] }
-egui = "0.37"
-egui_extras = "0.37"
+resources-ui.workspace = true
+eframe.workspace = true
+egui.workspace = true
+egui_extras.workspace = true
 ignore = "0.4"
 rfd = "0.17"
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 serde_json = "1"
 trash = "5"
 
 [dev-dependencies]
-egui_kittest = "0.37"
-tempfile = "3"
+resources-ui = { workspace = true, features = ["test-support"] }
+egui_kittest = { workspace = true, features = ["wgpu"] }
+tempfile.workspace = true

@@ -3,8 +3,9 @@
 use std::path::PathBuf;
 
 use egui::{Align, Layout, RichText, ThemePreference, Ui};
-use resources_mac::icons;
-use resources_mac::widgets::{card, group, icon_button};
+use resources_ui::icons;
+use resources_ui::settings::{appearance, hint};
+use resources_ui::widgets::{card, group, icon_button};
 use serde::{Deserialize, Serialize};
 
 /// Saved with eframe's app storage under [`Settings::KEY`].
@@ -59,38 +60,14 @@ pub fn show(ui: &mut Ui, settings: &mut Settings) -> Option<SettingsAction> {
                 action = Some(SettingsAction::Added(dir));
             }
         });
-        ui.label(
-            RichText::new("Folders are scanned at start and after every clean-up.")
-                .small()
-                .weak(),
-        );
+        hint(ui, "Folders are scanned at start and after every clean-up.");
     });
     match &action {
         Some(SettingsAction::Added(dir)) => settings.roots.push(dir.clone()),
         Some(SettingsAction::Removed(dir)) => settings.roots.retain(|r| r != dir),
         None => {}
     }
-    group(ui, "Appearance", |ui| {
-        card(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                for (theme, icon, label) in [
-                    (ThemePreference::System, icons::DESKTOP, "System"),
-                    (ThemePreference::Light, icons::SUN, "Light"),
-                    (ThemePreference::Dark, icons::MOON, "Dark"),
-                ] {
-                    let chip = egui::Button::selectable(
-                        settings.theme == theme,
-                        format!("{icon}  {label}"),
-                    )
-                    .corner_radius(14);
-                    if ui.add(chip).clicked() {
-                        settings.theme = theme;
-                        ui.ctx().set_theme(theme);
-                    }
-                }
-            });
-        });
-    });
+    appearance(ui, &mut settings.theme);
     action
 }
 

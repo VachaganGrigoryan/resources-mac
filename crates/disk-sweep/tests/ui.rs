@@ -9,23 +9,11 @@ use disk_sweep::suggest::suggestions;
 use disk_sweep::worker::{RootScan, State};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use resources_ui::test_support::{self, open, shows};
 
 fn harness(state: State, settings: Settings) -> Harness<'static, App> {
     let app = App::new(Arc::new(Mutex::new(state))).with_settings(settings);
-    Harness::builder()
-        .with_size([1000.0, 680.0])
-        .with_context_setup(resources_mac::theme::apply)
-        .build_ui_state(|ui, app: &mut App| app.show(ui), app)
-}
-
-fn shows(h: &Harness<'static, App>, text: &str) -> bool {
-    h.query_all_by_label_contains(text).next().is_some()
-}
-
-/// Clicks the sidebar entry: it is drawn first, so it is the first match.
-fn open(h: &mut Harness<'static, App>, page: &str) {
-    h.query_all_by_label(page).next().expect(page).click();
-    h.run();
+    test_support::harness(app, App::show)
 }
 
 #[test]

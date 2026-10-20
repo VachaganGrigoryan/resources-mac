@@ -12,7 +12,8 @@ jobs:
     runs-on: macos-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      sha256: ${{ steps.bundle.outputs.sha256 }}
+      sha256_resources: ${{ steps.bundle.outputs.sha256_resources }}
+      sha256_sweep: ${{ steps.bundle.outputs.sha256_sweep }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,7 +27,7 @@ jobs:
       - name: Check tag matches Cargo.toml version
         id: version
         run: |
-          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "resources-mac") | .version')
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $version"
             exit 1
@@ -36,18 +37,23 @@ jobs:
       - run: cargo build --release --locked --target aarch64-apple-darwin
       - run: cargo build --release --locked --target x86_64-apple-darwin
 
-      - name: Bundle universal app and dmg
+      - name: Bundle universal apps and dmgs
         id: bundle
-        # Explicit bash adds pipefail; a failed bundle must never yield an empty sha256 in the cask.
+        # Explicit bash adds pipefail; a failed bundle must never yield an empty sha256 in a cask.
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          sha256=$(scripts/bundle.sh "$VERSION")
-          [[ $sha256 =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bundle.sh did not print a sha256"; exit 1; }
-          echo "$sha256  resources-mac-$VERSION.dmg" > "dist/resources-mac-$VERSION.dmg.sha256"
-          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
-          lipo -info dist/Resources.app/Contents/MacOS/resources-mac
+          scripts/bundle.sh "$VERSION" > dist.sums
+          for pair in resources-mac:resources disk-sweep:sweep; do
+            slug=${pair%%:*} key=${pair##*:}
+            line=$(grep "  $slug-$VERSION.dmg$" dist.sums) || { echo "::error::no sha256 for $slug"; exit 1; }
+            sha256=${line%% *}
+            [[ $sha256 =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bad sha256 for $slug"; exit 1; }
+            echo "$line" > "dist/$slug-$VERSION.dmg.sha256"
+            echo "sha256_$key=$sha256" >> "$GITHUB_OUTPUT"
+          done
+          lipo -info dist/Resources.app/Contents/MacOS/resources-mac "dist/Disk Sweep.app/Contents/MacOS/disk-sweep"
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -69,13 +75,16 @@ jobs:
           # Deploy key with write access to homebrew-tap only.
           ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           path: tap
-      - name: Update cask
+      - name: Update casks
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           mkdir -p tap/Casks
-          scripts/cask.sh "${{ needs.build.outputs.version }}" "${{ needs.build.outputs.sha256 }}" > tap/Casks/resources-mac.rb
+          scripts/cask.sh resources-mac "$VERSION" "${{ needs.build.outputs.sha256_resources }}" > tap/Casks/resources-mac.rb
+          scripts/cask.sh disk-sweep "$VERSION" "${{ needs.build.outputs.sha256_sweep }}" > tap/Casks/disk-sweep.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/resources-mac.rb
-          git commit -m "resources-mac ${{ needs.build.outputs.version }}"
+          git add Casks/resources-mac.rb Casks/disk-sweep.rb
+          git commit -m "resources-mac and disk-sweep $VERSION"
           git push

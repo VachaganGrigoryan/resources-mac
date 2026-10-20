@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resources: a system monitor for Mac</title>
+<meta name="description" content="A free, open-source system monitor for macOS in the style of GNOME Resources: apps, processes, CPU, memory, GPU, drives, network and battery.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="stylesheet" href="/style.css">
+<script src="/theme.js"></script>
+<script src="/app.js" defer></script>
+</head>
+<body>
+
+<header class="menubar">
+  <a class="brand" href="/"><img src="/icon.png" alt="" width="22" height="22"><span>Resources for Mac</span></a>
+  <nav class="apps-nav" aria-label="Apps">
+    <a href="/resources/" aria-current="page">Resources</a>
+    <a href="/disk-sweep/">Disk Sweep</a>
+  </nav>
+  <span class="stats" aria-hidden="true" title="Live stats in the menu bar, like the app">
+    <span><svg class="i"><use href="/icons.svg#i-cpu"/></svg><span id="mb-cpu">23%</span></span>
+    <span><svg class="i"><use href="/icons.svg#i-memory"/></svg><span id="mb-mem">61%</span></span>
+  </span>
+  <nav class="actions" aria-label="Project">
+    <a class="btn quiet" href="https://github.com/VachaganGrigoryan/resources-mac"><svg class="i"><use href="/icons.svg#i-github-logo"/></svg>GitHub</a>
+    <a class="btn primary" href="#install"><svg class="i"><use href="/icons.svg#i-download-simple"/></svg>Install</a>
+  </nav>
+</header>
+
+<main>
+  <section class="intro">
+    <h1>Know what your Mac is busy with.</h1>
+    <p class="lede">Resources shows every app, process, processor core, drive and connection on your Mac in one quiet window, with the look of GNOME Resources. Keep a few numbers in the menu bar or a live graph on your desktop. Free and open source.</p>
+    <div class="get">
+      <code class="cmd" id="brew">brew install --cask VachaganGrigoryan/tap/resources-mac</code>
+      <button type="button" class="copy" data-copy="brew"><svg class="i"><use href="/icons.svg#i-copy"/></svg><span>Copy</span></button>
+    </div>
+    <p class="aside">Or <a href="https://github.com/VachaganGrigoryan/resources-mac/releases/latest">download resources-mac.dmg</a>. Needs macOS 13 or later, runs natively on Apple Silicon and Intel.</p>
+  </section>
+
+  <section class="demo">
+    <video id="demo" src="/screenrecord/resources-mac-demo.mp4" width="1200" height="816" autoplay muted loop playsinline aria-label="A walkthrough of Resources: the Overview, Apps, Processes, Processor and Memory pages, then switching to light mode in Settings"></video>
+  </section>
+
+  <section class="window" data-app="Resources" data-dir="" aria-label="Pages in the app">
+    <div class="titlebar">
+      <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="title">Resources</span>
+      <div class="theme" role="group" aria-label="Screenshot and page theme">
+        <button type="button" data-set-theme="light" aria-pressed="false" aria-label="Light"><svg class="i"><use href="/icons.svg#i-sun"/></svg></button>
+        <button type="button" data-set-theme="dark" aria-pressed="false" aria-label="Dark"><svg class="i"><use href="/icons.svg#i-moon"/></svg></button>
+      </div>
+    </div>
+    <div class="panes">
+      <div class="side" role="tablist" aria-label="Pages">
+        <button role="tab" aria-selected="true" aria-controls="view" data-shot="overview" data-text="Every app as a bubble around This Mac, sized by memory or processor use, with its processes packed inside. Lines show which app launched which. Double-click a bubble for its process tree."><span class="row"><svg class="i"><use href="/icons.svg#i-circles-three"/></svg>Overview</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="apps" data-text="Running apps with their Dock icons and the combined processor and memory use of all their processes. End, kill, halt or continue any of them."><span class="row"><svg class="i"><use href="/icons.svg#i-app-window"/></svg>Apps</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="processes" data-text="Every process, searchable and sortable, with app icons. End (SIGTERM), Kill (SIGKILL), Halt (SIGSTOP) and Continue (SIGCONT)."><span class="row"><svg class="i"><use href="/icons.svg#i-list-bullets"/></svg>Processes</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="processor" data-graph="cpu" data-text="Total and per-core processor usage over time."><span class="row"><svg class="i"><use href="/icons.svg#i-cpu"/></svg>Processor</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="memory" data-graph="memory" data-text="RAM and swap in use, with history."><span class="row"><svg class="i"><use href="/icons.svg#i-memory"/></svg>Memory</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="gpu" data-graph="gpu" data-text="Apple Silicon GPU usage and the memory it holds. Shown only on Macs that report it."><span class="row"><svg class="i"><use href="/icons.svg#i-graphics-card"/></svg>GPU</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="drive" data-graph="drive" data-text="One entry per drive with read and write speed and totals. Free Up Space… opens Disk Sweep when it is installed."><span class="row"><svg class="i"><use href="/icons.svg#i-hard-drive"/></svg>Drives</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="network" data-graph="network" data-text="One entry per connection, Wi-Fi or Ethernet. System VPN tunnels are merged into one entry."><span class="row"><svg class="i"><use href="/icons.svg#i-wifi-high"/></svg>Network</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="battery" data-graph="battery" data-text="Charge, power draw, health, design capacity and cycle count. Shown only on Macs with a battery."><span class="row"><svg class="i"><use href="/icons.svg#i-battery-high"/></svg>Battery</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="settings" data-text="Pick the stats for the menu bar and the desktop widget, with suggestions based on what your Mac is doing right now."><span class="row"><svg class="i"><use href="/icons.svg#i-gear-six"/></svg>Settings</span></button>
+      </div>
+      <figure class="view" id="view" role="tabpanel">
+        <img id="shot" src="/screenshots/light-overview.png" width="2000" height="1360" alt="The Overview page of Resources">
+        <figcaption id="caption">Every app as a bubble around This Mac, sized by memory or processor use, with its processes packed inside. Lines show which app launched which. Double-click a bubble for its process tree.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="install" id="install">
+    <h2>Install</h2>
+    <div class="methods">
+      <div class="method">
+        <svg class="i badge"><use href="/icons.svg#i-beer-stein"/></svg>
+        <div class="body">
+          <h3>Homebrew</h3>
+          <div class="get">
+            <code class="cmd" id="brew2">brew install --cask VachaganGrigoryan/tap/resources-mac</code>
+            <button type="button" class="copy" data-copy="brew2"><svg class="i"><use href="/icons.svg#i-copy"/></svg><span>Copy</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="method">
+        <svg class="i badge"><use href="/icons.svg#i-download-simple"/></svg>
+        <div class="body">
+          <h3>Download</h3>
+          <p>Get resources-mac.dmg from <a href="https://github.com/VachaganGrigoryan/resources-mac/releases/latest">the latest release</a> and drag Resources to Applications.</p>
+        </div>
+      </div>
+      <div class="method">
+        <svg class="i badge"><use href="/icons.svg#i-code"/></svg>
+        <div class="body">
+          <h3>Build from source</h3>
+          <p>You need a Rust toolchain.</p>
+          <pre><code>git clone https://github.com/VachaganGrigoryan/resources-mac
+cd resources-mac
+cargo run -p resources-mac --release</code></pre>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      <h3>First launch</h3>
+      <p>Releases are not notarized, so macOS blocks the app the first time. Open System Settings, then Privacy &amp; Security, scroll down and click Open Anyway. Or run:</p>
+      <pre><code>xattr -dr com.apple.quarantine /Applications/Resources.app</code></pre>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Resources for Mac is free software under the <a href="https://github.com/VachaganGrigoryan/resources-mac/blob/main/LICENSE">Apache License 2.0</a>. Icons by <a href="https://phosphoricons.com">Phosphor</a> (MIT).</p>
+  <p>An independent project inspired by <a href="https://gitlab.gnome.org/GNOME/Incubator/resources">GNOME Resources</a>, not affiliated with or endorsed by GNOME. Mac and macOS are trademarks of Apple Inc.</p>
+  <p class="private"><svg class="i"><use href="/icons.svg#i-shield-check"/></svg>This site sets no cookies, has no analytics and loads nothing from other servers.</p>
+</footer>
+</body>
+</html>

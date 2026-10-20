@@ -1,17 +1,24 @@
-// Sidebar tabs that swap the screenshot, a light/dark switch, live graphs and menu-bar stats like
-// the app's, and copy buttons. Kept in a file (not inline) because the CSP allows only same-origin scripts.
+// Shared by every page: sidebar tabs that swap the screenshot, a light/dark switch that also
+// swaps screenshots, live graphs and menu-bar stats like Resources', and copy buttons. Each part
+// runs only where its elements exist. Kept in a file (not inline) because the CSP allows only
+// same-origin scripts.
 
 const root = document.documentElement;
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const win = document.querySelector(".window");
+// Screenshots live in /screenshots/<dir><theme>-<page>.png; Disk Sweep's dir is "disk-sweep/".
+const dir = win?.dataset.dir ?? "";
 const tabs = [...document.querySelectorAll('[role="tab"]')];
+// Other screenshots that follow the theme: data-theme-shot="disk-sweep/overview".
+const themed = [...document.querySelectorAll("img[data-theme-shot]")];
 const shot = document.getElementById("shot");
 const caption = document.getElementById("caption");
 let current = tabs[0];
 
 // No autoplaying motion for reduced-motion users: stop the demo and let them start it.
-if (still) {
-  const demo = document.getElementById("demo");
+const demo = document.getElementById("demo");
+if (still && demo) {
   demo.pause();
   demo.controls = true;
 }
@@ -20,7 +27,7 @@ const theme = () => root.dataset.theme || (darkQuery.matches ? "dark" : "light")
 
 // Crossfades to `src`; the fade-in happens once the new image has loaded.
 function show(src) {
-  if (shot.getAttribute("src") === src) return;
+  if (!shot || shot.getAttribute("src") === src) return;
   if (still) {
     shot.src = src;
     return;
@@ -28,11 +35,17 @@ function show(src) {
   shot.classList.add("out");
   setTimeout(() => (shot.src = src), 160);
 }
-shot.addEventListener("load", () => shot.classList.remove("out"));
-shot.addEventListener("error", () => shot.classList.remove("out"));
+shot?.addEventListener("load", () => shot.classList.remove("out"));
+shot?.addEventListener("error", () => shot.classList.remove("out"));
+
+const shotUrl = (path) => {
+  const cut = path.lastIndexOf("/") + 1;
+  return `/screenshots/${path.slice(0, cut)}${theme()}-${path.slice(cut)}.png`;
+};
 
 function render() {
-  show(`/screenshots/${theme()}-${current.dataset.shot}.png`);
+  if (current) show(shotUrl(dir + current.dataset.shot));
+  for (const img of themed) img.src = shotUrl(img.dataset.themeShot);
   for (const b of document.querySelectorAll("[data-set-theme]")) {
     b.setAttribute("aria-pressed", String(b.dataset.setTheme === theme()));
   }
@@ -44,7 +57,7 @@ function select(tab, focus) {
     t.setAttribute("aria-selected", String(t === tab));
     t.tabIndex = t === tab ? 0 : -1;
   }
-  shot.alt = `The ${tab.textContent.trim()} page of Resources`;
+  shot.alt = `The ${tab.textContent.trim()} page of ${win.dataset.app}`;
   caption.textContent = tab.dataset.text;
   render();
   if (focus) tab.focus();
@@ -76,7 +89,7 @@ render();
 
 // Warm the cache so switching tabs doesn't flash.
 addEventListener("load", () => {
-  for (const t of tabs) new Image().src = `/screenshots/${theme()}-${t.dataset.shot}.png`;
+  for (const t of tabs) new Image().src = shotUrl(dir + t.dataset.shot);
 });
 
 // Sidebar graphs: tinted background, 40% area fill, full-colour line (the app's ResGraph look).
@@ -115,12 +128,13 @@ const last = (name) => `${Math.round(graphs.find((g) => g.name === name).values[
 
 function tick() {
   draw();
+  if (!cpuText) return;
   cpuText.textContent = last("cpu");
   memText.textContent = last("memory");
 }
 
 tick();
-if (!still) {
+if (!still && graphs.length) {
   let n = 0;
   setInterval(() => {
     for (const g of graphs) {
@@ -128,10 +142,7 @@ if (!still) {
       g.values.push(walk(g.values[N - 2]));
     }
     draw();
-    if (++n % 2 === 0) {
-      cpuText.textContent = last("cpu");
-      memText.textContent = last("memory");
-    }
+    if (++n % 2 === 0) tick();
   }, 1000);
 }
 
@@ -142,14 +153,14 @@ for (const btn of document.querySelectorAll("[data-copy]")) {
     const text = document.getElementById(btn.dataset.copy).textContent;
     try {
       await navigator.clipboard.writeText(text);
-      icon.setAttribute("href", "#i-check");
+      icon.setAttribute("href", "/icons.svg#i-check");
       label.textContent = "Copied";
       btn.classList.add("done");
     } catch {
       label.textContent = "Select and copy";
     }
     setTimeout(() => {
-      icon.setAttribute("href", "#i-copy");
+      icon.setAttribute("href", "/icons.svg#i-copy");
       label.textContent = "Copy";
       btn.classList.remove("done");
     }, 2000);

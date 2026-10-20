@@ -1,5 +1,6 @@
-// App icon for Resources for Mac, drawn with CoreGraphics so it is reproducible and needs
-// no design tools. An original design: the app's own sidebar mini graphs as the motif.
+// App icons for Resources for Mac and Disk Sweep, drawn with CoreGraphics so they are
+// reproducible and need no design tools. Original designs: Resources shows the app's own
+// sidebar mini graphs, Disk Sweep its stacked "space by kind" bars.
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -16,6 +17,8 @@ func rgb(_ hex: UInt32, _ a: CGFloat = 1) -> CGColor {
 
 // Upstream GNOME Resources graph colours, as in src/theme.rs.
 let CPU: UInt32 = 0x3584E4, MEM: UInt32 = 0xC52F90, DRIVE: UInt32 = 0xFF7800
+// Disk Sweep kind colours, as in crates/disk-sweep/src/widgets.rs (Other ignored, Git history).
+let GREY: UInt32 = 0x8E8E93, GIT: UInt32 = 0x26A269
 
 func gradient(_ colors: [CGColor], _ locs: [CGFloat]? = nil) -> CGGradient {
     CGGradient(colorsSpace: srgb, colors: colors as CFArray, locations: locs)!
@@ -99,6 +102,37 @@ func icon(_ c: CGContext, _ k: CGFloat) {
     }
 }
 
+/// Disk Sweep: three of the app's stacked kind bars (project files, caches & builds, editor
+/// metadata, other ignored, git history), each shorter than the last, as space is freed.
+func sweep(_ c: CGContext, _ k: CGFloat) {
+    body(c, k, top: 0x3B404D, bottom: 0x1B1E26) { r in
+        let bars: [[(UInt32, CGFloat)]] = [
+            [(CPU, 0.34), (DRIVE, 0.40), (MEM, 0.10), (GREY, 0.08), (GIT, 0.08)],
+            [(CPU, 0.34), (DRIVE, 0.18), (MEM, 0.06), (GIT, 0.08)],
+            [(CPU, 0.34), (GIT, 0.08)],
+        ]
+        let h = 150 * k, gap = 46 * k, x = 190 * k, w = 644 * k
+        var y = r.midY + (3 * h + 2 * gap) / 2 - h
+        for parts in bars {
+            let track = CGRect(x: x, y: y, width: w, height: h)
+            let rounded = CGPath(roundedRect: track, cornerWidth: 30 * k, cornerHeight: 30 * k, transform: nil)
+            c.saveGState()
+            c.addPath(rounded); c.clip()
+            c.setFillColor(rgb(0xFFFFFF, 0.08)); c.fill(track)
+            var left = x
+            for (color, frac) in parts {
+                let seg = CGRect(x: left, y: y, width: w * frac, height: h)
+                c.setFillColor(rgb(color, 0.85)); c.fill(seg)
+                left += w * frac
+                // Hairline between parts, like the app's bar.
+                c.setFillColor(rgb(0x1B1E26, 0.9)); c.fill(CGRect(x: left - 3 * k, y: y, width: 6 * k, height: h))
+            }
+            c.restoreGState()
+            y -= h + gap
+        }
+    }
+}
+
 func render(_ px: Int, _ draw: (CGContext, CGFloat) -> Void, to path: String) {
     let c = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
                       space: srgb, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
@@ -111,20 +145,26 @@ func render(_ px: Int, _ draw: (CGContext, CGFloat) -> Void, to path: String) {
 }
 
 
-// Usage: swift scripts/icon.swift   (from the repo root)
-// Writes macos/AppIcon.icns, assets/icon-256.png and docs/icon.png.
-let iconset = "macos/AppIcon.iconset"
-try FileManager.default.createDirectory(atPath: iconset, withIntermediateDirectories: true)
-for pt in [16, 32, 128, 256, 512] {
-    render(pt, icon, to: "\(iconset)/icon_\(pt)x\(pt).png")
-    render(pt * 2, icon, to: "\(iconset)/icon_\(pt)x\(pt)@2x.png")
+/// Writes `<dir>/macos/AppIcon.icns`, `<dir>/assets/icon-256.png` and the 512 px `docs` PNG.
+func write(_ draw: (CGContext, CGFloat) -> Void, crate dir: String, docs: String) throws {
+    let iconset = "\(dir)/macos/AppIcon.iconset"
+    try FileManager.default.createDirectory(atPath: iconset, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(atPath: "\(dir)/assets", withIntermediateDirectories: true)
+    for pt in [16, 32, 128, 256, 512] {
+        render(pt, draw, to: "\(iconset)/icon_\(pt)x\(pt).png")
+        render(pt * 2, draw, to: "\(iconset)/icon_\(pt)x\(pt)@2x.png")
+    }
+    render(256, draw, to: "\(dir)/assets/icon-256.png")
+    render(512, draw, to: docs)
+    let iconutil = Process()
+    iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+    iconutil.arguments = ["-c", "icns", iconset, "-o", "\(dir)/macos/AppIcon.icns"]
+    try iconutil.run()
+    iconutil.waitUntilExit()
+    guard iconutil.terminationStatus == 0 else { fatalError("iconutil failed") }
+    try FileManager.default.removeItem(atPath: iconset)
 }
-render(256, icon, to: "assets/icon-256.png")
-render(512, icon, to: "docs/icon.png")
-let iconutil = Process()
-iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
-iconutil.arguments = ["-c", "icns", iconset, "-o", "macos/AppIcon.icns"]
-try iconutil.run()
-iconutil.waitUntilExit()
-guard iconutil.terminationStatus == 0 else { fatalError("iconutil failed") }
-try FileManager.default.removeItem(atPath: iconset)
+
+// Usage: swift scripts/icon.swift   (from the repo root; redraws both icons)
+try write(icon, crate: "crates/resources", docs: "docs/icon.png")
+try write(sweep, crate: "crates/disk-sweep", docs: "docs/disk-sweep-icon.png")

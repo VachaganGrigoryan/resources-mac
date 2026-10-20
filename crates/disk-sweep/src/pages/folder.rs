@@ -8,8 +8,8 @@ use std::sync::mpsc::Receiver;
 
 use egui::{Align, Layout, RichText, Ui};
 use egui_extras::{Column, TableBuilder};
-use resources_mac::table::Confirm;
-use resources_mac::widgets::{card, destructive_button, fmt_bytes, group};
+use resources_ui::confirm::Confirm;
+use resources_ui::widgets::{BarAction, action_bar, card, fmt_bytes, group, names_preview};
 
 use crate::scan::{Kind, Node};
 use crate::suggest::{Suggestion, default_selected};
@@ -84,15 +84,16 @@ fn question(scan: &RootScan, paths: &[PathBuf], retry: bool) -> String {
     } else {
         format!("Move {items} ({}) to the Trash?\n", fmt_bytes(bytes))
     };
-    for p in paths.iter().take(5) {
-        q.push_str(&format!(
-            "\n{}",
-            p.strip_prefix(&scan.root).unwrap_or(p).display()
-        ));
-    }
-    if paths.len() > 5 {
-        q.push_str(&format!("\n… and {} more", paths.len() - 5));
-    }
+    let names: Vec<String> = paths
+        .iter()
+        .map(|p| {
+            p.strip_prefix(&scan.root)
+                .unwrap_or(p)
+                .display()
+                .to_string()
+        })
+        .collect();
+    q.push_str(&names_preview(&names));
     q
 }
 
@@ -125,35 +126,31 @@ pub fn bar(ui: &mut Ui, view: &mut FolderView, scan: &RootScan) -> Option<Vec<Pa
     }
     let picked = view.picked(scan);
     let bytes: u64 = picked.iter().map(|s| s.bytes).sum();
-    egui::Panel::bottom(ui.scope_id().with("folder-bar"))
-        .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 10)))
-        .show(ui, |ui| {
-            if let Some(notice) = &view.notice {
-                ui.colored_label(ui.visuals().error_fg_color, notice);
-            }
-            ui.horizontal(|ui| {
-                let busy = view.pending.is_some();
-                let count = if busy {
-                    "Moving to the Trash…".to_owned()
-                } else {
-                    format!(
-                        "{} · {} selected",
-                        plural(picked.len(), "item"),
-                        fmt_bytes(bytes)
-                    )
-                };
-                ui.label(RichText::new(count).weak());
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    let enabled = !picked.is_empty() && !busy && !scan.scanning;
-                    if destructive_button(ui, "Move to Trash", enabled).clicked() {
-                        view.asked = picked.iter().map(|s| s.path.clone()).collect();
-                        view.notice = None;
-                        view.confirm
-                            .ask(FolderAction::Trash, question(scan, &view.asked, false));
-                    }
-                });
-            });
-        });
+    let busy = view.pending.is_some();
+    let count = if busy {
+        "Moving to the Trash…".to_owned()
+    } else {
+        format!(
+            "{} · {} selected",
+            plural(picked.len(), "item"),
+            fmt_bytes(bytes)
+        )
+    };
+    let enabled = !picked.is_empty() && !busy && !scan.scanning;
+    let clicked = action_bar(
+        ui,
+        &count,
+        view.notice.as_deref(),
+        "Move to Trash",
+        &[],
+        enabled,
+    );
+    if clicked == Some(BarAction::Primary) {
+        view.asked = picked.iter().map(|s| s.path.clone()).collect();
+        view.notice = None;
+        view.confirm
+            .ask(FolderAction::Trash, question(scan, &view.asked, false));
+    }
     let confirmed = view.confirm.show(ui, "Move to Trash").is_some() && view.pending.is_none();
     confirmed.then(|| view.asked.clone())
 }

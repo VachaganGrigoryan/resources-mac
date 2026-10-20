@@ -39,7 +39,7 @@ fn page(dir: &tempfile::TempDir) -> (Harness<'static, Page>, PathBuf, PathBuf) {
     state.view.sync(&state.scan);
     let h = Harness::builder()
         .with_size([800.0, 600.0])
-        .with_context_setup(resources_mac::theme::apply)
+        .with_context_setup(resources_ui::theme::apply)
         .build_ui_state(
             |ui, p: &mut Page| {
                 if let Some(paths) = bar(ui, &mut p.view, &p.scan) {

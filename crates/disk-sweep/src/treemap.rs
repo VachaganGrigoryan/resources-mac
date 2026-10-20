@@ -1,7 +1,7 @@
 //! Squarified treemap of a folder's children: area by size, colour by kind.
 
 use egui::{Align2, Color32, FontId, Rect, Sense, Ui, WidgetInfo, pos2, vec2};
-use resources_mac::widgets::fmt_bytes;
+use resources_ui::widgets::fmt_bytes;
 
 use crate::scan::Node;
 use crate::widgets::kind_color;
