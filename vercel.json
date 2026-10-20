@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "",
-  "buildCommand": "rm -rf public && mkdir public && cp -R site/static/. public/ && cp -R docs/screenshots public/screenshots && cp docs/icon.png public/icon.png && cp docs/disk-sweep-icon.png public/disk-sweep-icon.png && mkdir public/screenrecord && cp docs/screenrecord/resources-mac-demo.mp4 public/screenrecord/",
+  "buildCommand": "sh site/build.sh",
   "outputDirectory": "public",
   "git": { "deploymentEnabled": { "main": false } },
   "headers": [
