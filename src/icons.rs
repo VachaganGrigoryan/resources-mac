@@ -29,3 +29,11 @@ pub const CORNERS_OUT: &str = "\u{E1D0}";
 pub const SUN: &str = "\u{E472}";
 pub const MOON: &str = "\u{E330}";
 pub const DESKTOP: &str = "\u{E560}";
+// Disk Sweep.
+pub const FOLDER: &str = "\u{E24A}";
+pub const BROOM: &str = "\u{EC54}";
+pub const SHIPPING_CONTAINER: &str = "\u{E78C}";
+pub const TRASH: &str = "\u{E4A6}";
+pub const ARROWS_CLOCKWISE: &str = "\u{E094}";
+pub const PLUS: &str = "\u{E3D4}";
+pub const X: &str = "\u{E4F6}";
