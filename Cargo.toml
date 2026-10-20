@@ -28,3 +28,8 @@ ron = "0.12"
 [profile.release]
 lto = true
 strip = true
+
+[workspace]
+members = ["crates/disk-sweep"]
+# The website is its own Cargo project (own lockfile, own CI job).
+exclude = ["site"]

@@ -35,6 +35,14 @@ The GPU and Battery pages appear only on Macs that report them.
 
 Every page in light and dark mode is in [`docs/screenshots/`](docs/screenshots). They are rendered from sample data with `cargo test --test screenshots -- --ignored`, so re-running it updates them after UI changes.
 
+## Disk Sweep
+
+A second app in this repo (`crates/disk-sweep`): pick folders such as `~/WS`, see where the bytes are, and move what is safe to the Trash. It tells **project files** apart from **caches & builds** (`node_modules`, `target`, `.venv`, `__pycache__`, `.next`, …), **editor & OS metadata** (`.idea`, `.vscode`, `.DS_Store`), **other gitignored files** and **git history**, following each repo's `.gitignore`. A Docker page shows images, containers, volumes and build cache with what `docker … prune` would reclaim, and the real size of the Docker Desktop VM disk.
+
+```sh
+cargo run -p disk-sweep --release
+```
+
 ## Install
 
 ```sh
