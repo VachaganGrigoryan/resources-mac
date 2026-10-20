@@ -7,3 +7,5 @@ pub mod classify;
 pub mod docker;
 pub mod scan;
 pub mod suggest;
+pub mod treemap;
+pub mod widgets;
