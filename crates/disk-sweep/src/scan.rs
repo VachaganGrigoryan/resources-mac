@@ -1,6 +1,7 @@
 //! Walks a folder into a size tree. Project folders keep their children; caches, editor
 //! metadata, ignored files and `.git` are summed into one node each.
 
+use resources_ui::display_name;
 use std::collections::HashSet;
 use std::fs;
 use std::io;
@@ -84,13 +85,6 @@ fn allocated(md: &fs::Metadata) -> u64 {
     md.blocks() * 512
 }
 
-fn file_name(path: &Path) -> String {
-    path.file_name().map_or_else(
-        || path.display().to_string(),
-        |n| n.to_string_lossy().into_owned(),
-    )
-}
-
 /// What one scan carries down the tree.
 struct Walk<'a> {
     stack: IgnoreStack,
@@ -142,7 +136,7 @@ impl Walk<'_> {
         let own = allocated(md);
         let mut node = leaf(
             dir.to_path_buf(),
-            file_name(dir),
+            display_name(dir),
             Kind::Source,
             true,
             own,
@@ -155,7 +149,7 @@ impl Walk<'_> {
                 self.progress.error();
                 continue;
             };
-            let name = file_name(&path);
+            let name = display_name(&path);
             let is_dir = md.is_dir();
             let ignored = self.stack.is_ignored(&path, is_dir);
             let (mut kind, mut detector) = classify(&path, &name, is_dir, ignored);

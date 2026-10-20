@@ -1,8 +1,8 @@
-//! Disk Sweep drawing helpers on top of `resources_mac::widgets`.
+//! Disk Sweep drawing helpers on top of `resources_ui::widgets`.
 
 use egui::Color32;
-use resources_mac::theme::color;
-use resources_mac::widgets::{card, fmt_bytes};
+use resources_ui::theme::color;
+use resources_ui::widgets::{card, fmt_bytes};
 
 use crate::scan::Kind;
 
@@ -73,7 +73,7 @@ pub fn stat_tile(ui: &mut egui::Ui, title: &str, value: &str, hint: &str) {
         ui.label(
             egui::RichText::new(value)
                 .size(22.0)
-                .family(resources_mac::theme::semibold()),
+                .family(resources_ui::theme::semibold()),
         );
         ui.label(egui::RichText::new(hint).small().weak());
     });

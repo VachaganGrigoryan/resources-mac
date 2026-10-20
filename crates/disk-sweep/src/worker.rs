@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::docker::{self, Usage, VmDisk};
@@ -52,10 +52,7 @@ pub struct State {
 
 pub type Shared = Arc<Mutex<State>>;
 
-/// The state, even if a worker panicked while holding it.
-pub fn lock(shared: &Shared) -> MutexGuard<'_, State> {
-    shared.lock().unwrap_or_else(|e| e.into_inner())
-}
+pub use resources_ui::lock;
 
 static GENERATION: AtomicU64 = AtomicU64::new(1);
 

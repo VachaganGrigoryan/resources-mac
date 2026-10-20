@@ -3,9 +3,11 @@
 use std::sync::mpsc::Receiver;
 
 use egui::{Align, Layout, RichText, Ui};
-use resources_mac::icons;
-use resources_mac::table::Confirm;
-use resources_mac::widgets::{card, destructive_button, fmt_bytes, group, icon_button};
+use resources_ui::confirm::Confirm;
+use resources_ui::icons;
+use resources_ui::widgets::{
+    card, destructive_button, fmt_bytes, group, icon_button, names_preview,
+};
 
 use crate::docker::{Prune, Usage};
 use crate::widgets::stat_tile;
@@ -73,12 +75,8 @@ fn question(p: Prune, u: &Usage, command: &[String]) -> String {
     let (n, bytes) = u.reclaimable(p);
     let mut q = format!("{} ({n}, {})?\n", button_label(p), fmt_bytes(bytes));
     let rows = items(u, p);
-    for (name, _, _) in rows.iter().take(5) {
-        q.push_str(&format!("\n{name}"));
-    }
-    if rows.len() > 5 {
-        q.push_str(&format!("\n… and {} more", rows.len() - 5));
-    }
+    let names: Vec<&str> = rows.iter().map(|(name, _, _)| name.as_str()).collect();
+    q.push_str(&names_preview(&names));
     let shown: Vec<&str> = command.iter().take(3).map(String::as_str).collect();
     let more = if command.len() > 3 { " …" } else { "" };
     q.push_str(&format!(

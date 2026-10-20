@@ -1,7 +1,8 @@
 //! Overview: totals across every watched folder and Docker, and the biggest wins.
 
 use egui::{Align, Layout, RichText, Ui};
-use resources_mac::widgets::{card, fmt_bytes, group};
+use resources_ui::display_name;
+use resources_ui::widgets::{card, fmt_bytes, group};
 
 use crate::app::Page;
 use crate::docker::Prune;
@@ -11,13 +12,6 @@ use crate::worker::State;
 
 /// Suggestions listed under "Top suggestions".
 const TOP: usize = 10;
-
-fn folder_name(root: &std::path::Path) -> String {
-    root.file_name().map_or_else(
-        || root.display().to_string(),
-        |n| n.to_string_lossy().into_owned(),
-    )
-}
 
 pub fn show(ui: &mut Ui, s: &State) -> Option<Page> {
     let mut open = None;
@@ -89,7 +83,7 @@ pub fn show(ui: &mut Ui, s: &State) -> Option<Page> {
             card(ui, |ui| {
                 ui.horizontal(|ui| {
                     if ui
-                        .link(RichText::new(folder_name(&r.root)).strong())
+                        .link(RichText::new(display_name(&r.root)).strong())
                         .clicked()
                     {
                         open = Some(Page::Folder(r.root.clone()));
@@ -133,7 +127,7 @@ pub fn show(ui: &mut Ui, s: &State) -> Option<Page> {
                     .show(ui, |ui| {
                         for (r, sg) in top {
                             let rel = sg.path.strip_prefix(&r.root).unwrap_or(&sg.path);
-                            let name = format!("{}/{}", folder_name(&r.root), rel.display());
+                            let name = format!("{}/{}", display_name(&r.root), rel.display());
                             if ui.link(name).clicked() {
                                 open = Some(Page::Folder(r.root.clone()));
                             }
