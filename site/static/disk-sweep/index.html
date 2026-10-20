@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disk Sweep: free up space from your projects</title>
+<meta name="description" content="Disk Sweep finds caches, build output, editor metadata and gitignored files in your project folders, plus unused Docker data, and moves what you pick to the Trash.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="stylesheet" href="/style.css">
+<script src="/theme.js"></script>
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header class="menubar">
+  <a class="brand" href="/"><img src="/icon.png" alt="" width="22" height="22"><span>Resources for Mac</span></a>
+  <nav class="apps-nav" aria-label="Apps">
+    <a href="/resources/">Resources</a>
+    <a href="/disk-sweep/" aria-current="page">Disk Sweep</a>
+  </nav>
+  <nav class="actions" aria-label="Project">
+    <a class="btn quiet" href="https://github.com/VachaganGrigoryan/resources-mac"><svg class="i"><use href="/icons.svg#i-github-logo"/></svg>GitHub</a>
+    <a class="btn primary" href="#install"><svg class="i"><use href="/icons.svg#i-download-simple"/></svg>Install</a>
+  </nav>
+</header>
+
+<main>
+  <section class="intro">
+    <img class="app-icon" src="/disk-sweep-icon.png" alt="" width="88" height="88">
+    <h1>Find the gigabytes your projects can rebuild.</h1>
+    <p class="lede">Disk Sweep scans the folders you choose and tells project files apart from dependencies, build output, editor metadata and git history. It suggests what to move to the Trash, tells you how to get each item back, and does the same for Docker.</p>
+    <div class="get">
+      <code class="cmd" id="brew">brew install --cask VachaganGrigoryan/tap/disk-sweep</code>
+      <button type="button" class="copy" data-copy="brew"><svg class="i"><use href="/icons.svg#i-copy"/></svg><span>Copy</span></button>
+    </div>
+    <p class="aside">Or <a href="https://github.com/VachaganGrigoryan/resources-mac/releases/latest">download disk-sweep.dmg</a>. Needs macOS 13 or later, runs natively on Apple Silicon and Intel.</p>
+  </section>
+
+  <section class="window" data-app="Disk Sweep" data-dir="disk-sweep/" aria-label="Pages in the app">
+    <div class="titlebar">
+      <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="title">Disk Sweep</span>
+      <div class="theme" role="group" aria-label="Screenshot and page theme">
+        <button type="button" data-set-theme="light" aria-pressed="false" aria-label="Light"><svg class="i"><use href="/icons.svg#i-sun"/></svg></button>
+        <button type="button" data-set-theme="dark" aria-pressed="false" aria-label="Dark"><svg class="i"><use href="/icons.svg#i-moon"/></svg></button>
+      </div>
+    </div>
+    <div class="panes">
+      <div class="side" role="tablist" aria-label="Pages">
+        <button role="tab" aria-selected="true" aria-controls="view" data-shot="overview" data-text="Totals across every folder you watch and Docker: what was scanned, what can go and what needs a look, with the biggest wins first."><span class="row"><svg class="i"><use href="/icons.svg#i-broom"/></svg>Overview</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="folder" data-text="One watched folder. A bar splits its space into project files, caches and builds, editor and OS metadata, other gitignored files and git history. Click into the map to see where it is, then tick what goes to the Trash."><span class="row"><svg class="i"><use href="/icons.svg#i-folder"/></svg>WS</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="docker" data-text="Images, containers, volumes and build cache, with what each prune would free and how much the Docker Desktop disk really takes on your Mac."><span class="row"><svg class="i"><use href="/icons.svg#i-shipping-container"/></svg>Docker</span></button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="settings" data-text="Pick the folders to watch, such as ~/WS. They are scanned at start and after every clean-up."><span class="row"><svg class="i"><use href="/icons.svg#i-gear-six"/></svg>Settings</span></button>
+      </div>
+      <figure class="view" id="view" role="tabpanel">
+        <img id="shot" src="/screenshots/disk-sweep/light-overview.png" width="2000" height="1360" alt="The Overview page of Disk Sweep">
+        <figcaption id="caption">Totals across every folder you watch and Docker: what was scanned, what can go and what needs a look, with the biggest wins first.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="rules" aria-labelledby="rules">
+    <h2 id="rules">Before anything moves</h2>
+    <ul>
+      <li><svg class="i"><use href="/icons.svg#i-trash"/></svg><span>Folders go to the Trash, so you can put them back. Docker clean-ups are permanent, and the dialog says so.</span></li>
+      <li><svg class="i"><use href="/icons.svg#i-check"/></svg><span>Nothing moves until you confirm a dialog that shows how many items and how much space.</span></li>
+      <li><svg class="i"><use href="/icons.svg#i-git-branch"/></svg><span>Each repository's .gitignore decides. Folders with common names such as build, dist or vendor are suggested only when they are ignored.</span></li>
+      <li><svg class="i"><use href="/icons.svg#i-shield-check"/></svg><span>Symbolic links are never followed, and a nested repository keeps its own rules.</span></li>
+    </ul>
+  </section>
+
+  <section class="install" id="install">
+    <h2>Install</h2>
+    <div class="methods">
+      <div class="method">
+        <svg class="i badge"><use href="/icons.svg#i-beer-stein"/></svg>
+        <div class="body">
+          <h3>Homebrew</h3>
+          <div class="get">
+      <code class="cmd" id="brew2">brew install --cask VachaganGrigoryan/tap/disk-sweep</code>
+      <button type="button" class="copy" data-copy="brew2"><svg class="i"><use href="/icons.svg#i-copy"/></svg><span>Copy</span></button>
+    </div>
+        </div>
+      </div>
+      <div class="method">
+        <svg class="i badge"><use href="/icons.svg#i-download-simple"/></svg>
+        <div class="body">
+          <h3>Download</h3>
+          <p>Get disk-sweep.dmg from <a href="https://github.com/VachaganGrigoryan/resources-mac/releases/latest">the latest release</a> and drag Disk Sweep to Applications. With it installed, the Free Up Space… button on a drive page in Resources opens it.</p>
+        </div>
+      </div>
+      <div class="method">
+        <svg class="i badge"><use href="/icons.svg#i-code"/></svg>
+        <div class="body">
+          <h3>Build from source</h3>
+          <p>You need a Rust toolchain.</p>
+          <pre><code>git clone https://github.com/VachaganGrigoryan/resources-mac
+cd resources-mac
+cargo run -p disk-sweep --release</code></pre>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      <h3>First launch</h3>
+      <p>Releases are not notarized, so macOS blocks the app the first time. Open System Settings, then Privacy &amp; Security, scroll down and click Open Anyway. Or run:</p>
+      <pre><code>xattr -dr com.apple.quarantine "/Applications/Disk Sweep.app"</code></pre>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Resources for Mac is free software under the <a href="https://github.com/VachaganGrigoryan/resources-mac/blob/main/LICENSE">Apache License 2.0</a>. Icons by <a href="https://phosphoricons.com">Phosphor</a> (MIT).</p>
+  <p>An independent project inspired by <a href="https://gitlab.gnome.org/GNOME/Incubator/resources">GNOME Resources</a>, not affiliated with or endorsed by GNOME. Mac and macOS are trademarks of Apple Inc.</p>
+  <p class="private"><svg class="i"><use href="/icons.svg#i-shield-check"/></svg>This site sets no cookies, has no analytics and loads nothing from other servers.</p>
+</footer>
+</body>
+</html>
