@@ -30,6 +30,10 @@ pub struct FolderView {
     pub confirm: Confirm<FolderAction>,
     /// The Trash job in flight.
     pub pending: Option<Receiver<Result<(), String>>>,
+    /// Paths the open dialog lists; confirming trashes exactly these.
+    pub asked: Vec<PathBuf>,
+    /// Error of a Trash job with nothing left to retry.
+    pub notice: Option<String>,
     /// Scan generation the selection was made for.
     seen: u64,
 }
@@ -66,23 +70,67 @@ impl FolderView {
     }
 }
 
+/// The dialog text for `paths`: count, size and the first few, relative to the root.
+fn question(scan: &RootScan, paths: &[PathBuf], retry: bool) -> String {
+    let bytes: u64 = scan
+        .suggestions
+        .iter()
+        .filter(|s| paths.contains(&s.path))
+        .map(|s| s.bytes)
+        .sum();
+    let items = plural(paths.len(), "item");
+    let mut q = if retry {
+        format!("Try again to move {items} to the Trash?\n")
+    } else {
+        format!("Move {items} ({}) to the Trash?\n", fmt_bytes(bytes))
+    };
+    for p in paths.iter().take(5) {
+        q.push_str(&format!(
+            "\n{}",
+            p.strip_prefix(&scan.root).unwrap_or(p).display()
+        ));
+    }
+    if paths.len() > 5 {
+        q.push_str(&format!("\n… and {} more", paths.len() - 5));
+    }
+    q
+}
+
 /// Bottom bar with the selection total and "Move to Trash"; returns the paths to trash once
 /// the user confirms.
 pub fn bar(ui: &mut Ui, view: &mut FolderView, scan: &RootScan) -> Option<Vec<PathBuf>> {
     if let Some(rx) = &view.pending
         && let Ok(result) = rx.try_recv()
     {
-        if result.is_ok() {
-            view.selected.clear();
-        }
-        view.confirm.finish(result);
         view.pending = None;
+        match result {
+            Ok(()) => {
+                view.selected.clear();
+                view.asked.clear();
+                view.confirm.finish(Ok(()));
+            }
+            Err(e) => {
+                // What moved is gone; offer the rest again, with the error.
+                view.asked.retain(|p| p.symlink_metadata().is_ok());
+                if view.asked.is_empty() {
+                    view.confirm.pending = None;
+                    view.notice = Some(e);
+                } else {
+                    view.confirm
+                        .ask(FolderAction::Trash, question(scan, &view.asked, true));
+                    view.confirm.error = Some(e);
+                }
+            }
+        }
     }
     let picked = view.picked(scan);
     let bytes: u64 = picked.iter().map(|s| s.bytes).sum();
     egui::Panel::bottom(ui.scope_id().with("folder-bar"))
         .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 10)))
         .show(ui, |ui| {
+            if let Some(notice) = &view.notice {
+                ui.colored_label(ui.visuals().error_fg_color, notice);
+            }
             ui.horizontal(|ui| {
                 let busy = view.pending.is_some();
                 let count = if busy {
@@ -98,24 +146,16 @@ pub fn bar(ui: &mut Ui, view: &mut FolderView, scan: &RootScan) -> Option<Vec<Pa
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let enabled = !picked.is_empty() && !busy && !scan.scanning;
                     if destructive_button(ui, "Move to Trash", enabled).clicked() {
-                        let mut question = format!(
-                            "Move {} ({}) to the Trash?\n",
-                            plural(picked.len(), "item"),
-                            fmt_bytes(bytes)
-                        );
-                        for s in picked.iter().take(5) {
-                            question.push_str(&format!("\n{}", relative(scan, s)));
-                        }
-                        if picked.len() > 5 {
-                            question.push_str(&format!("\n… and {} more", picked.len() - 5));
-                        }
-                        view.confirm.ask(FolderAction::Trash, question);
+                        view.asked = picked.iter().map(|s| s.path.clone()).collect();
+                        view.notice = None;
+                        view.confirm
+                            .ask(FolderAction::Trash, question(scan, &view.asked, false));
                     }
                 });
             });
         });
     let confirmed = view.confirm.show(ui, "Move to Trash").is_some() && view.pending.is_none();
-    confirmed.then(|| picked.iter().map(|s| s.path.clone()).collect())
+    confirmed.then(|| view.asked.clone())
 }
 
 fn relative(scan: &RootScan, s: &Suggestion) -> String {

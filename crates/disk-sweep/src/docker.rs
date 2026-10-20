@@ -8,6 +8,7 @@ use serde_json::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Image {
+    pub id: String,
     pub repository: String,
     pub tag: String,
     pub size: u64,
@@ -91,17 +92,6 @@ impl Prune {
             Prune::BuildCache => "Build cache",
         }
     }
-
-    /// Arguments after `docker`.
-    pub fn args(self) -> &'static [&'static str] {
-        match self {
-            Prune::DanglingImages => &["image", "prune", "-f"],
-            Prune::UnusedImages => &["image", "prune", "-a", "-f"],
-            Prune::StoppedContainers => &["container", "prune", "-f"],
-            Prune::UnusedVolumes => &["volume", "prune", "-a", "-f"],
-            Prune::BuildCache => &["builder", "prune", "-a", "-f"],
-        }
-    }
 }
 
 /// What `docker container prune` removes.
@@ -109,29 +99,73 @@ pub fn stopped(c: &Container) -> bool {
     !matches!(c.state.as_str(), "running" | "paused" | "restarting")
 }
 
+fn unused_image(i: &Image) -> bool {
+    i.containers == 0
+}
+
+fn dangling(i: &Image) -> bool {
+    unused_image(i) && i.tag == "<none>"
+}
+
 fn tally<T>(items: impl Iterator<Item = T>, size: impl Fn(&T) -> u64) -> (usize, u64) {
     items.fold((0, 0), |(n, b), t| (n + 1, b + size(&t)))
 }
 
 impl Usage {
+    pub fn images_for(&self, p: Prune) -> impl Iterator<Item = &Image> {
+        self.images.iter().filter(move |i| match p {
+            Prune::DanglingImages => dangling(i),
+            Prune::UnusedImages => unused_image(i),
+            _ => false,
+        })
+    }
+
+    pub fn stopped_containers(&self) -> impl Iterator<Item = &Container> {
+        self.containers.iter().filter(|c| stopped(c))
+    }
+
+    pub fn unused_volumes(&self) -> impl Iterator<Item = &Volume> {
+        self.volumes.iter().filter(|v| v.links == 0)
+    }
+
+    pub fn idle_build_cache(&self) -> impl Iterator<Item = &BuildCache> {
+        self.build_cache.iter().filter(|b| !b.in_use)
+    }
+
     /// How many items `p` would remove and the bytes that frees.
     pub fn reclaimable(&self, p: Prune) -> (usize, u64) {
         match p {
-            Prune::DanglingImages => tally(
-                self.images
-                    .iter()
-                    .filter(|i| i.tag == "<none>" && i.containers == 0),
-                |i| i.unique_size,
-            ),
-            Prune::UnusedImages => tally(self.images.iter().filter(|i| i.containers == 0), |i| {
-                i.unique_size
-            }),
-            Prune::StoppedContainers => {
-                tally(self.containers.iter().filter(|c| stopped(c)), |c| c.size)
+            Prune::DanglingImages | Prune::UnusedImages => {
+                tally(self.images_for(p), |i| i.unique_size)
             }
-            Prune::UnusedVolumes => tally(self.volumes.iter().filter(|v| v.links == 0), |v| v.size),
-            Prune::BuildCache => tally(self.build_cache.iter().filter(|b| !b.in_use), |b| b.size),
+            Prune::StoppedContainers => tally(self.stopped_containers(), |c| c.size),
+            Prune::UnusedVolumes => tally(self.unused_volumes(), |v| v.size),
+            Prune::BuildCache => tally(self.idle_build_cache(), |b| b.size),
         }
+    }
+
+    /// Arguments after `docker` that remove exactly the items listed for `p`. Removals are by
+    /// name, not `prune`: Docker refuses in-use items, so a list gone stale can't widen what
+    /// is deleted. Build cache has no names to give and is always re-creatable.
+    pub fn command(&self, p: Prune) -> Vec<String> {
+        let (verb, names): ([&str; 2], Vec<String>) = match p {
+            Prune::DanglingImages | Prune::UnusedImages => (
+                ["image", "rm"],
+                self.images_for(p).map(|i| i.id.clone()).collect(),
+            ),
+            Prune::StoppedContainers => (
+                ["container", "rm"],
+                self.stopped_containers().map(|c| c.name.clone()).collect(),
+            ),
+            Prune::UnusedVolumes => (
+                ["volume", "rm"],
+                self.unused_volumes().map(|v| v.name.clone()).collect(),
+            ),
+            Prune::BuildCache => {
+                return ["builder", "prune", "-a", "-f"].map(String::from).to_vec();
+            }
+        };
+        verb.iter().map(|v| (*v).to_owned()).chain(names).collect()
     }
 
     /// Everything Docker stores, by its own count (shared image layers once).
@@ -215,6 +249,7 @@ pub fn parse_df(verbose: &str, summary: &str) -> Result<Usage, String> {
             .images
             .iter()
             .map(|i| Image {
+                id: text(i, "ID"),
                 repository: text(i, "Repository"),
                 tag: text(i, "Tag"),
                 size: size(i, "Size"),
@@ -282,10 +317,11 @@ pub fn df() -> Result<Usage, String> {
     parse_df(&verbose, &summary)
 }
 
-/// Runs the prune; `Ok` holds its last output line ("Total reclaimed space: 1.2GB").
-pub fn prune(p: Prune) -> Result<String, String> {
-    let out = run_docker("docker", p.args())?;
-    Ok(out.lines().last().unwrap_or("Done").trim().to_owned())
+/// Runs `docker args…`; `Ok` holds its last output line ("Total reclaimed space: 1.2GB").
+pub fn remove(args: &[String]) -> Result<String, String> {
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out = run_docker("docker", &args)?;
+    Ok(out.lines().last().unwrap_or_default().trim().to_owned())
 }
 
 /// Docker Desktop's VM disk: a sparse file, so its apparent size overstates what it uses.
@@ -315,8 +351,8 @@ mod tests {
     use super::*;
 
     const VERBOSE: &str = r#"{"Images":[
-      {"Containers":"1","CreatedSince":"13 days ago","Repository":"postgres","Tag":"17-alpine","Size":"161MB","SharedSize":"0B","UniqueSize":"161.3MB"},
-      {"Containers":"0","CreatedSince":"2 months ago","Repository":"<none>","Tag":"<none>","Size":"1.2GB","SharedSize":"200MB","UniqueSize":"1GB"}],
+      {"Containers":"1","CreatedSince":"13 days ago","ID":"sha256:aaa","Repository":"postgres","Tag":"17-alpine","Size":"161MB","SharedSize":"0B","UniqueSize":"161.3MB"},
+      {"Containers":"0","CreatedSince":"2 months ago","ID":"sha256:bbb","Repository":"<none>","Tag":"<none>","Size":"1.2GB","SharedSize":"200MB","UniqueSize":"1GB"}],
      "Containers":[
       {"Names":"db","Image":"postgres:17-alpine","Size":"4.1kB","State":"running","Status":"Up 2 hours"},
       {"Names":"old","Image":"node:20","Size":"10MB (virtual 1.1GB)","State":"exited","Status":"Exited (0) 2 days ago"}],
@@ -381,9 +417,26 @@ mod tests {
     }
 
     #[test]
-    fn prune_args_are_fixed() {
-        assert_eq!(Prune::UnusedVolumes.args(), ["volume", "prune", "-a", "-f"]);
-        assert_eq!(Prune::BuildCache.args(), ["builder", "prune", "-a", "-f"]);
+    fn removals_name_exactly_what_was_shown() {
+        let u = parse_df(VERBOSE, SUMMARY).unwrap();
+        // Named removals: Docker refuses in-use items, so nothing beyond the list can go.
+        assert_eq!(u.command(Prune::UnusedVolumes), ["volume", "rm", "orphan"]);
+        assert_eq!(
+            u.command(Prune::StoppedContainers),
+            ["container", "rm", "old"]
+        );
+        assert_eq!(
+            u.command(Prune::UnusedImages),
+            ["image", "rm", "sha256:bbb"]
+        );
+        assert_eq!(
+            u.command(Prune::DanglingImages),
+            ["image", "rm", "sha256:bbb"]
+        );
+        assert_eq!(
+            u.command(Prune::BuildCache),
+            ["builder", "prune", "-a", "-f"]
+        );
     }
 
     /// Talks to the real daemon: `cargo test -p disk-sweep docker_live -- --ignored --nocapture`.

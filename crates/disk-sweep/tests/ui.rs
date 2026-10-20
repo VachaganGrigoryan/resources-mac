@@ -191,7 +191,7 @@ fn docker_state(docker: Result<disk_sweep::docker::Usage, String>) -> Harness<'s
 
 fn usage() -> disk_sweep::docker::Usage {
     disk_sweep::docker::parse_df(
-        r#"{"Images":[{"Containers":"0","Repository":"<none>","Tag":"<none>","Size":"1.2GB","UniqueSize":"1GB","CreatedSince":"2 months ago"}],
+        r#"{"Images":[{"Containers":"0","ID":"sha256:bbb","Repository":"<none>","Tag":"<none>","Size":"1.2GB","UniqueSize":"1GB","CreatedSince":"2 months ago"}],
             "Containers":[{"Names":"old","Image":"node:20","Size":"10MB","State":"exited","Status":"Exited (0) 2 days ago"}],
             "Volumes":[{"Name":"orphan-volume","Links":"0","Size":"72MB"}],
             "BuildCache":[]}"#,
@@ -226,8 +226,9 @@ fn prune_asks_for_confirmation_first() {
     let mut h = docker_state(Ok(usage()));
     h.get_by_label("Remove unused volumes").click();
     h.run();
-    assert!(shows(&h, "docker volume prune -a -f"));
+    assert!(shows(&h, "docker volume rm orphan-volume"));
+    assert!(shows(&h, "can't be undone"));
     h.get_by_label("Cancel").click();
     h.run();
-    assert!(!shows(&h, "docker volume prune -a -f"));
+    assert!(!shows(&h, "docker volume rm"));
 }

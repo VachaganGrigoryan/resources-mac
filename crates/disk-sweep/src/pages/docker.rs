@@ -7,14 +7,16 @@ use resources_mac::icons;
 use resources_mac::table::Confirm;
 use resources_mac::widgets::{card, destructive_button, fmt_bytes, group, icon_button};
 
-use crate::docker::{Prune, Usage, stopped};
+use crate::docker::{Prune, Usage};
 use crate::widgets::stat_tile;
 use crate::worker::State;
 
 #[derive(Default)]
 pub struct DockerView {
     pub confirm: Confirm<Prune>,
-    /// The prune in flight.
+    /// The command the open dialog shows; confirming runs exactly this.
+    pub asked: Vec<String>,
+    /// The removal in flight.
     pub pending: Option<Receiver<Result<String, String>>>,
     /// Outcome of the last prune ("Total reclaimed space: 1.2GB").
     pub last: Option<String>,
@@ -22,16 +24,15 @@ pub struct DockerView {
 
 pub enum DockerAction {
     Refresh,
-    Prune(Prune),
+    /// Arguments after `docker`.
+    Run(Vec<String>),
 }
 
 /// Name, detail and size of every item `p` would remove.
 fn items(u: &Usage, p: Prune) -> Vec<(String, String, u64)> {
     match p {
         Prune::DanglingImages | Prune::UnusedImages => u
-            .images
-            .iter()
-            .filter(|i| i.containers == 0 && (p == Prune::UnusedImages || i.tag == "<none>"))
+            .images_for(p)
             .map(|i| {
                 (
                     format!("{}:{}", i.repository, i.tag),
@@ -41,9 +42,7 @@ fn items(u: &Usage, p: Prune) -> Vec<(String, String, u64)> {
             })
             .collect(),
         Prune::StoppedContainers => u
-            .containers
-            .iter()
-            .filter(|c| stopped(c))
+            .stopped_containers()
             .map(|c| {
                 (
                     c.name.clone(),
@@ -53,9 +52,7 @@ fn items(u: &Usage, p: Prune) -> Vec<(String, String, u64)> {
             })
             .collect(),
         Prune::UnusedVolumes => u
-            .volumes
-            .iter()
-            .filter(|v| v.links == 0)
+            .unused_volumes()
             .map(|v| {
                 (
                     v.name.clone(),
@@ -65,12 +62,30 @@ fn items(u: &Usage, p: Prune) -> Vec<(String, String, u64)> {
             })
             .collect(),
         Prune::BuildCache => u
-            .build_cache
-            .iter()
-            .filter(|b| !b.in_use)
+            .idle_build_cache()
             .map(|b| (b.id.clone(), format!("last used {}", b.last_used), b.size))
             .collect(),
     }
+}
+
+/// The confirm question: what goes, that it is permanent, and the command it runs.
+fn question(p: Prune, u: &Usage, command: &[String]) -> String {
+    let (n, bytes) = u.reclaimable(p);
+    let mut q = format!("{} ({n}, {})?\n", button_label(p), fmt_bytes(bytes));
+    let rows = items(u, p);
+    for (name, _, _) in rows.iter().take(5) {
+        q.push_str(&format!("\n{name}"));
+    }
+    if rows.len() > 5 {
+        q.push_str(&format!("\n… and {} more", rows.len() - 5));
+    }
+    let shown: Vec<&str> = command.iter().take(3).map(String::as_str).collect();
+    let more = if command.len() > 3 { " …" } else { "" };
+    q.push_str(&format!(
+        "\n\nThis permanently deletes them; it can't be undone.\nRuns `docker {}{more}`.",
+        shown.join(" ")
+    ));
+    q
 }
 
 fn button_label(p: Prune) -> String {
@@ -83,8 +98,9 @@ pub fn show(ui: &mut Ui, view: &mut DockerView, s: &State) -> Option<DockerActio
         && let Ok(result) = rx.try_recv()
     {
         view.last = Some(match &result {
-            Ok(line) => line.clone(),
-            Err(e) => format!("Prune failed: {e}"),
+            Ok(line) if line.contains("reclaimed") => line.clone(),
+            Ok(_) => "Removed.".to_owned(),
+            Err(e) => format!("Docker couldn't remove everything: {e}"),
         });
         view.confirm.finish(result.map(|_| ()));
         view.pending = None;
@@ -175,15 +191,8 @@ pub fn show(ui: &mut Ui, view: &mut DockerView, s: &State) -> Option<DockerActio
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let enabled = n > 0 && view.pending.is_none();
                         if destructive_button(ui, &button_label(p), enabled).clicked() {
-                            view.confirm.ask(
-                                p,
-                                format!(
-                                    "{} ({n}, {})?\nThis runs `docker {}`.",
-                                    button_label(p),
-                                    fmt_bytes(bytes),
-                                    p.args().join(" ")
-                                ),
-                            );
+                            view.asked = usage.command(p);
+                            view.confirm.ask(p, question(p, usage, &view.asked));
                         }
                     });
                 });
@@ -209,10 +218,8 @@ pub fn show(ui: &mut Ui, view: &mut DockerView, s: &State) -> Option<DockerActio
         }
     });
 
-    if let Some(p) = view.confirm.show(ui, "Remove")
-        && view.pending.is_none()
-    {
-        action = Some(DockerAction::Prune(p));
+    if view.confirm.show(ui, "Remove").is_some() && view.pending.is_none() {
+        action = Some(DockerAction::Run(view.asked.clone()));
     }
     action
 }

@@ -180,8 +180,8 @@ impl App {
             Some(Action::Docker(DockerAction::Refresh)) => {
                 worker::refresh_docker(&self.shared, ctx);
             }
-            Some(Action::Docker(DockerAction::Prune(p))) => {
-                self.docker.pending = Some(worker::prune_then_refresh(&self.shared, p, ctx));
+            Some(Action::Docker(DockerAction::Run(args))) => {
+                self.docker.pending = Some(worker::prune_then_refresh(&self.shared, args, ctx));
             }
             Some(Action::Trash(root, paths)) => {
                 let rx = worker::trash_then_rescan(&self.shared, root.clone(), paths, ctx);

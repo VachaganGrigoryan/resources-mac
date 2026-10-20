@@ -1,6 +1,7 @@
 //! Walks a folder into a size tree. Project folders keep their children; caches, editor
 //! metadata, ignored files and `.git` are summed into one node each.
 
+use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::os::unix::fs::MetadataExt;
@@ -90,90 +91,105 @@ fn file_name(path: &Path) -> String {
     )
 }
 
-// shortcut: hard links are counted once per link; dedupe by inode if clones skew the totals.
-/// Bytes and files under `dir`, without classifying anything.
-fn sum_dir(dir: &Path, progress: &Progress) -> (u64, u64) {
-    let Ok(entries) = fs::read_dir(dir) else {
-        progress.error();
-        return (0, 0);
-    };
-    let (mut bytes, mut files) = (0, 0);
-    for entry in entries {
-        let Ok(md) = entry.and_then(|e| e.metadata().map(|md| (e.path(), md))) else {
-            progress.error();
-            continue;
-        };
-        let (path, md) = md;
-        bytes += allocated(&md);
-        if md.is_dir() {
-            let (b, f) = sum_dir(&path, progress);
-            bytes += b;
-            files += f;
-        } else {
-            files += 1;
-            progress.add(1, allocated(&md));
-        }
-    }
-    (bytes, files)
+/// What one scan carries down the tree.
+struct Walk<'a> {
+    stack: IgnoreStack,
+    progress: &'a Progress,
+    /// Multi-link files already counted, by (device, inode): `du` counts them once too.
+    linked: HashSet<(u64, u64)>,
 }
 
-/// A project folder: classifies each entry and keeps the tree.
-fn walk(
-    dir: &Path,
-    md: &fs::Metadata,
-    stack: &mut IgnoreStack,
-    progress: &Progress,
-) -> io::Result<Node> {
-    let entries = fs::read_dir(dir)?;
-    let token = stack.enter(dir);
-    let own = allocated(md);
-    let mut node = Node {
-        name: file_name(dir),
-        path: dir.to_path_buf(),
-        kind: Kind::Source,
-        is_dir: true,
-        bytes: own,
-        files: 0,
-        by_kind: [0; 5],
-        children: Vec::new(),
-        detector: None,
-    };
-    node.by_kind[Kind::Source.index()] = own;
-    for entry in entries {
-        // DirEntry::metadata does not follow symlinks.
-        let Ok((path, md)) = entry.and_then(|e| e.metadata().map(|md| (e.path(), md))) else {
-            progress.error();
-            continue;
-        };
-        let name = file_name(&path);
-        let is_dir = md.is_dir();
-        let ignored = stack.is_ignored(&path, is_dir);
-        let (kind, detector) = classify(&path, &name, is_dir, ignored);
-        let child = if kind == Kind::Source && is_dir {
-            match walk(&path, &md, stack, progress) {
-                Ok(child) => child,
-                Err(_) => {
-                    progress.error();
-                    leaf(path, name, kind, true, allocated(&md), 0, None)
-                }
-            }
-        } else if is_dir {
-            let (b, f) = sum_dir(&path, progress);
-            leaf(path, name, kind, true, allocated(&md) + b, f, detector)
-        } else {
-            progress.add(1, allocated(&md));
-            leaf(path, name, kind, false, allocated(&md), 1, detector)
-        };
-        node.bytes += child.bytes;
-        node.files += child.files;
-        for (sum, b) in node.by_kind.iter_mut().zip(child.by_kind) {
-            *sum += b;
+impl Walk<'_> {
+    /// Space `md` takes, or 0 for another link to a file already counted.
+    // shortcut: APFS clones still count in full; they share blocks the API doesn't expose.
+    fn size(&mut self, md: &fs::Metadata) -> u64 {
+        if !md.is_dir() && md.nlink() > 1 && !self.linked.insert((md.dev(), md.ino())) {
+            return 0;
         }
-        node.children.push(child);
+        allocated(md)
     }
-    stack.leave(token);
-    node.children.sort_by_key(|c| std::cmp::Reverse(c.bytes));
-    Ok(node)
+
+    /// Bytes and files under `dir`, without classifying anything.
+    fn sum_dir(&mut self, dir: &Path) -> (u64, u64) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            self.progress.error();
+            return (0, 0);
+        };
+        let (mut bytes, mut files) = (0, 0);
+        for entry in entries {
+            let Ok((path, md)) = entry.and_then(|e| e.metadata().map(|md| (e.path(), md))) else {
+                self.progress.error();
+                continue;
+            };
+            let size = self.size(&md);
+            bytes += size;
+            if md.is_dir() {
+                let (b, f) = self.sum_dir(&path);
+                bytes += b;
+                files += f;
+            } else {
+                files += 1;
+                self.progress.add(1, size);
+            }
+        }
+        (bytes, files)
+    }
+
+    /// A project folder: classifies each entry and keeps the tree.
+    fn walk(&mut self, dir: &Path, md: &fs::Metadata) -> io::Result<Node> {
+        let entries = fs::read_dir(dir)?;
+        let token = self.stack.enter(dir);
+        let own = allocated(md);
+        let mut node = leaf(
+            dir.to_path_buf(),
+            file_name(dir),
+            Kind::Source,
+            true,
+            own,
+            0,
+            None,
+        );
+        for entry in entries {
+            // DirEntry::metadata does not follow symlinks.
+            let Ok((path, md)) = entry.and_then(|e| e.metadata().map(|md| (e.path(), md))) else {
+                self.progress.error();
+                continue;
+            };
+            let name = file_name(&path);
+            let is_dir = md.is_dir();
+            let ignored = self.stack.is_ignored(&path, is_dir);
+            let (mut kind, mut detector) = classify(&path, &name, is_dir, ignored);
+            // A clone with its own history may hold unpushed work, whatever the parent ignores.
+            if is_dir && matches!(kind, Kind::Cache | Kind::Ignored) && path.join(".git").exists() {
+                (kind, detector) = (Kind::Source, None);
+            }
+            let child = if kind == Kind::Source && is_dir {
+                match self.walk(&path, &md) {
+                    Ok(child) => child,
+                    Err(_) => {
+                        self.progress.error();
+                        leaf(path, name, kind, true, allocated(&md), 0, None)
+                    }
+                }
+            } else if is_dir {
+                let (b, f) = self.sum_dir(&path);
+                leaf(path, name, kind, true, allocated(&md) + b, f, detector)
+            } else {
+                let size = self.size(&md);
+                self.progress.add(1, size);
+                leaf(path, name, kind, false, size, 1, detector)
+            };
+            node.bytes += child.bytes;
+            node.files += child.files;
+            for (sum, b) in node.by_kind.iter_mut().zip(child.by_kind) {
+                *sum += b;
+            }
+            node.children.push(child);
+        }
+        self.stack.leave(token);
+        node.children.sort_by_key(|c| std::cmp::Reverse(c.bytes));
+        Ok(node)
+    }
 }
 
 fn leaf(
@@ -207,7 +223,12 @@ pub fn scan_root(root: &Path, progress: &Progress) -> io::Result<Node> {
     if !md.is_dir() {
         return Err(io::Error::new(io::ErrorKind::NotADirectory, "not a folder"));
     }
-    walk(root, &md, &mut IgnoreStack::new(), progress)
+    Walk {
+        stack: IgnoreStack::new(),
+        progress,
+        linked: HashSet::new(),
+    }
+    .walk(root, &md)
 }
 
 /// First node named `name`, depth-first, `node` itself included.

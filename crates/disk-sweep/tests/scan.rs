@@ -148,3 +148,82 @@ fn missing_root_is_an_error() {
         .is_err()
     );
 }
+
+/// Scans a real folder and prints what the app would suggest:
+/// `DISK_SWEEP_ROOT=~/WS cargo test -p disk-sweep --release --test scan real_folder -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn real_folder() {
+    let root = std::env::var("DISK_SWEEP_ROOT").expect("set DISK_SWEEP_ROOT");
+    let progress = Progress::default();
+    let start = std::time::Instant::now();
+    let node = scan_root(Path::new(&root), &progress).unwrap();
+    println!(
+        "{} files, {} B in {:?}, {} unreadable",
+        node.files,
+        node.bytes,
+        start.elapsed(),
+        progress.errors.load(Ordering::Relaxed)
+    );
+    for k in Kind::ALL {
+        println!("{:>22}: {} B", k.label(), node.by_kind[k.index()]);
+    }
+    for s in disk_sweep::suggest::suggestions(&node).iter().take(10) {
+        println!(
+            "{:>14} B  {:?}  {}  {}",
+            s.bytes,
+            s.kind,
+            s.label,
+            s.path.display()
+        );
+    }
+}
+
+#[test]
+fn nested_repo_ignored_by_parent_is_walked_not_suggested() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("proj");
+    write(&p.join(".gitignore"), "vendor/\nthird_party/\n");
+    touch(&p.join("vendor/lib/.git/HEAD"), 1);
+    touch(&p.join("vendor/lib/src.c"), 1);
+    touch(&p.join("vendor/.git/HEAD"), 1);
+    touch(&p.join("vendor/main.c"), 1);
+    touch(&p.join("third_party/.git/HEAD"), 1);
+    touch(&p.join("third_party/x.c"), 1);
+    let root = scan_root(dir.path(), &Progress::default()).unwrap();
+    // Clones with their own history may hold unpushed work: never a cache.
+    assert_eq!(kind_of(&root, "vendor"), Kind::Source);
+    assert_eq!(kind_of(&root, "third_party"), Kind::Source);
+    assert_eq!(kind_of(&root, "main.c"), Kind::Source);
+}
+
+#[test]
+fn hard_links_are_counted_once() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("a/big"), 64 * 1024);
+    fs::create_dir_all(dir.path().join("b")).unwrap();
+    fs::hard_link(dir.path().join("a/big"), dir.path().join("b/big")).unwrap();
+    let root = scan_root(dir.path(), &Progress::default()).unwrap();
+    let a = find(&root, "a").unwrap().bytes;
+    let b = find(&root, "b").unwrap().bytes;
+    assert!(a.max(b) >= 64 * 1024);
+    assert!(
+        a.min(b) < 64 * 1024,
+        "second link counted again: a={a} b={b}"
+    );
+}
+
+#[test]
+fn hard_links_inside_a_cache_are_counted_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("proj");
+    write(&p.join("Cargo.toml"), "");
+    touch(&p.join("target/debug/deps/app"), 64 * 1024);
+    fs::hard_link(p.join("target/debug/deps/app"), p.join("target/debug/app")).unwrap();
+    let root = scan_root(dir.path(), &Progress::default()).unwrap();
+    let target = find(&root, "target").unwrap().bytes;
+    assert!(
+        target < 2 * 64 * 1024,
+        "target counted both links: {target}"
+    );
+}

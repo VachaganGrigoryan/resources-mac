@@ -7,7 +7,7 @@ use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
-use crate::docker::{self, Prune, Usage, VmDisk};
+use crate::docker::{self, Usage, VmDisk};
 use crate::scan::{Node, Progress, scan_root};
 use crate::suggest::{Suggestion, suggestions};
 
@@ -119,17 +119,23 @@ pub fn refresh_docker(shared: &Shared, ctx: egui::Context) {
 /// Moves each path to the Trash, carrying on past failures; the error lists every path that
 /// didn't move and why.
 pub fn trash_paths(paths: &[PathBuf]) -> Result<(), String> {
-    let failed: Vec<String> = paths
+    let (present, missing): (Vec<&PathBuf>, Vec<&PathBuf>) =
+        paths.iter().partition(|p| p.symlink_metadata().is_ok());
+    let mut failed: Vec<String> = missing
         .iter()
-        .filter_map(|p| {
-            if p.symlink_metadata().is_err() {
-                return Some(format!("{}: no longer exists", p.display()));
-            }
+        .map(|p| format!("{}: no longer exists", p.display()))
+        .collect();
+    // One Finder request for the lot (one per path takes minutes for hundreds of caches);
+    // only when it fails, retry one by one to name the culprits.
+    if !present.is_empty() && trash::delete_all(&present).is_err() {
+        // Whatever the failed batch did move is gone and not a failure.
+        let left = present.iter().filter(|p| p.symlink_metadata().is_ok());
+        failed.extend(left.filter_map(|p| {
             trash::delete(p)
                 .err()
                 .map(|e| format!("{}: {e}", p.display()))
-        })
-        .collect();
+        }));
+    }
     if failed.is_empty() {
         Ok(())
     } else {
@@ -154,17 +160,17 @@ pub fn trash_then_rescan(
     rx
 }
 
-/// Runs a prune on a thread, then refreshes the Docker numbers.
+/// Runs a Docker removal (`docker args…`) on a thread, then refreshes the Docker numbers.
 pub fn prune_then_refresh(
     shared: &Shared,
-    p: Prune,
+    args: Vec<String>,
     ctx: egui::Context,
 ) -> Receiver<Result<String, String>> {
     let (tx, rx) = mpsc::channel();
     let shared = Arc::clone(shared);
     lock(&shared).docker_busy = true;
     thread::spawn(move || {
-        let _ = tx.send(docker::prune(p));
+        let _ = tx.send(docker::remove(&args));
         refresh_docker(&shared, ctx.clone());
         ctx.request_repaint();
     });
