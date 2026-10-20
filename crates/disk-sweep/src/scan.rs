@@ -172,7 +172,7 @@ fn walk(
         node.children.push(child);
     }
     stack.leave(token);
-    node.children.sort_by(|a, b| b.bytes.cmp(&a.bytes));
+    node.children.sort_by_key(|c| std::cmp::Reverse(c.bytes));
     Ok(node)
 }
 
