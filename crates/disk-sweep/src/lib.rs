@@ -4,5 +4,6 @@
 pub const APP_NAME: &str = "Disk Sweep";
 
 pub mod classify;
+pub mod docker;
 pub mod scan;
 pub mod suggest;
