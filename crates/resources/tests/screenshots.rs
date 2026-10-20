@@ -1,5 +1,5 @@
 //! Renders every page offscreen with sample data for visual review.
-//! Run: `cargo test --test screenshots -- --ignored`; images land in `docs/screenshots/`
+//! Run: `cargo test -p resources-mac --test screenshots -- --ignored`; images land in `docs/screenshots/`
 //! (committed, shown in the README).
 
 use std::sync::{Arc, Mutex};
@@ -181,7 +181,7 @@ fn shoot(theme: egui::Theme, name: &str) {
         })
         .wgpu()
         .build_ui_state(|ui, app: &mut App| app.show(ui), App::new(state));
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/screenshots");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/screenshots");
     std::fs::create_dir_all(&dir).unwrap();
     for (label, slug) in [
         ("Overview", "overview"),
@@ -331,7 +331,7 @@ fn demo_frames() {
         })
         .wgpu()
         .build_ui_state(|ui, app: &mut App| app.show(ui), App::new(state.clone()));
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/demo");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/demo");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let cursor = egui::pos2(700.0, 450.0);

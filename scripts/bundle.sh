@@ -16,9 +16,9 @@ lipo -create \
   "$root/target/aarch64-apple-darwin/release/$bin" \
   "$root/target/x86_64-apple-darwin/release/$bin" \
   -output "$app/Contents/MacOS/$bin"
-sed "s/__VERSION__/$version/g" "$root/macos/Info.plist" > "$app/Contents/Info.plist"
+sed "s/__VERSION__/$version/g" "$root/crates/resources/macos/Info.plist" > "$app/Contents/Info.plist"
 mkdir -p "$app/Contents/Resources"
-cp "$root/macos/AppIcon.icns" "$app/Contents/Resources/"
+cp "$root/crates/resources/macos/AppIcon.icns" "$app/Contents/Resources/"
 # Apache-2.0 and the crates' MIT/BSD licenses require their texts to ship with the binary.
 cp "$root/LICENSE" "$root/NOTICE" "$app/Contents/Resources/"
 (cd "$root" && cargo about generate --fail about.hbs) > "$app/Contents/Resources/THIRD_PARTY_LICENSES.html"

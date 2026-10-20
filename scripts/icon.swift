@@ -112,18 +112,18 @@ func render(_ px: Int, _ draw: (CGContext, CGFloat) -> Void, to path: String) {
 
 
 // Usage: swift scripts/icon.swift   (from the repo root)
-// Writes macos/AppIcon.icns, assets/icon-256.png and docs/icon.png.
-let iconset = "macos/AppIcon.iconset"
+// Writes crates/resources/macos/AppIcon.icns, crates/resources/assets/icon-256.png and docs/icon.png.
+let iconset = "crates/resources/macos/AppIcon.iconset"
 try FileManager.default.createDirectory(atPath: iconset, withIntermediateDirectories: true)
 for pt in [16, 32, 128, 256, 512] {
     render(pt, icon, to: "\(iconset)/icon_\(pt)x\(pt).png")
     render(pt * 2, icon, to: "\(iconset)/icon_\(pt)x\(pt)@2x.png")
 }
-render(256, icon, to: "assets/icon-256.png")
+render(256, icon, to: "crates/resources/assets/icon-256.png")
 render(512, icon, to: "docs/icon.png")
 let iconutil = Process()
 iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
-iconutil.arguments = ["-c", "icns", iconset, "-o", "macos/AppIcon.icns"]
+iconutil.arguments = ["-c", "icns", iconset, "-o", "crates/resources/macos/AppIcon.icns"]
 try iconutil.run()
 iconutil.waitUntilExit()
 guard iconutil.terminationStatus == 0 else { fatalError("iconutil failed") }

@@ -11,7 +11,7 @@ name = "disk-sweep"
 path = "src/main.rs"
 
 [dependencies]
-resources-mac = { path = "../.." }
+resources-mac = { path = "../resources" }
 eframe = { version = "0.37", features = ["persistence"] }
 egui = "0.37"
 egui_extras = "0.37"

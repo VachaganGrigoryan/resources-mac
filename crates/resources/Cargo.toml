@@ -1,0 +1,29 @@
+[package]
+name = "resources-mac"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "A macOS system monitor inspired by GNOME Resources"
+repository.workspace = true
+
+[dependencies]
+resources-ui.workspace = true
+anyhow = "1"
+core-foundation = "0.10"
+eframe.workspace = true
+egui.workspace = true
+egui_extras.workspace = true
+io-kit-sys = "0.5"
+libc = "0.2"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "objc2-core-foundation", "NSBitmapImageRep", "NSGraphics", "NSGraphicsContext", "NSImage", "NSImageRep", "NSRunningApplication", "NSWorkspace", "NSApplication", "NSButton", "NSCell", "NSControl", "NSFont", "NSFontDescriptor", "NSMenu", "NSMenuItem", "NSResponder", "NSStatusBar", "NSStatusBarButton", "NSStatusItem", "NSView", "NSWindow"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSString", "NSThread"] }
+serde.workspace = true
+starship-battery = "0.12"
+sysinfo = "0.39"
+
+[dev-dependencies]
+resources-ui = { workspace = true, features = ["test-support"] }
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+ron = "0.12"
+tempfile.workspace = true
