@@ -1,6 +1,6 @@
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use resources_mac::{icons, theme};
+use resources_ui::{icons, theme};
 
 #[test]
 fn phosphor_glyphs_render_in_harness() {

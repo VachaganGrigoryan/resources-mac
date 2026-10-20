@@ -1,6 +1,6 @@
 use egui::{FontFamily, TextStyle};
 use egui_kittest::Harness;
-use resources_mac::theme;
+use resources_ui::theme;
 
 fn ctx() -> egui::Context {
     let h = Harness::builder()

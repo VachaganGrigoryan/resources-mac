@@ -3,7 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use egui::{Frame, RichText, Ui, ViewportCommand};
+use egui::{RichText, Ui, ViewportCommand};
 use objc2::MainThreadMarker;
 
 use crate::actions;
@@ -15,11 +15,9 @@ use crate::pages;
 use crate::pages::settings::Settings;
 use crate::sampler::{NetStat, State};
 use crate::stats::{self, Stat};
-use crate::theme::{self, color, palette};
-use crate::widgets::{Series, header_bar, icon_button, menu_item, page_column, sidebar_item};
-
-/// Sidebar width, as in the GNOME screenshots.
-const SIDEBAR_W: f32 = 240.0;
+use crate::theme::{self, color};
+use crate::widgets::{Series, icon_button, sidebar_item};
+use resources_ui::shell::{self, MenuEntry};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Page {
@@ -237,70 +235,42 @@ impl App {
     /// Draws one frame. Public so UI tests can drive it without a window.
     pub fn show(&mut self, ui: &mut Ui) {
         let state = Arc::clone(&self.state);
-        let s = state.lock().unwrap_or_else(|e| e.into_inner());
+        let s = resources_ui::lock(&state);
         let entries = entries(&s);
         // A drive was ejected or an interface went away while its page was open.
         // Settings opens from the Main Menu, so it has no sidebar entry.
         if self.page != Page::Settings && !entries.iter().any(|e| e.page == self.page) {
             self.page = Page::Overview;
         }
-        let p = palette(ui.visuals());
+        let menu = [
+            MenuEntry::Item(icons::GEAR_SIX, "Settings"),
+            MenuEntry::Separator,
+            MenuEntry::Item(icons::INFO, "About Resources"),
+        ];
+        let clicked = shell::sidebar(ui, "Resources", &menu, |ui| {
+            for e in &entries {
+                let graph = e.graph.as_ref().map(|(g, max)| (g.as_slice(), *max));
+                let selected = self.page == e.page;
+                if sidebar_item(ui, e.icon, &e.label, selected, graph).clicked() {
+                    self.page = e.page.clone();
+                }
+            }
+        });
+        match clicked {
+            Some("Settings") => self.page = Page::Settings,
+            Some(_) => self.about = true,
+            None => {}
+        }
 
-        egui::Panel::left("sidebar")
-            .exact_size(SIDEBAR_W)
-            .resizable(false)
-            .frame(Frame::new().fill(p.sidebar).inner_margin(8))
-            .show(ui, |ui| {
-                // Same baseline as the page header; the traffic lights sit to the left.
-                ui.add_space(6.0);
-                let title = ui
-                    .vertical_centered(|ui| ui.label(RichText::new("Resources").heading().strong()))
-                    .inner
-                    .rect;
-                let at = egui::Rect::from_center_size(
-                    egui::pos2(ui.max_rect().right() - 18.0, title.center().y),
-                    egui::vec2(32.0, 32.0),
-                );
-                let menu = ui.put(at, |ui: &mut Ui| icon_button(ui, icons::LIST, "Main Menu"));
-                egui::Popup::menu(&menu).show(|ui| {
-                    ui.set_width(200.0);
-                    ui.spacing_mut().item_spacing.y = 2.0;
-                    if menu_item(ui, icons::GEAR_SIX, "Settings").clicked() {
-                        self.page = Page::Settings;
-                    }
-                    ui.separator();
-                    if menu_item(ui, icons::INFO, "About Resources").clicked() {
-                        self.about = true;
-                    }
-                });
-                ui.add_space(8.0);
-                egui::ScrollArea::vertical()
-                    .auto_shrink(false)
-                    .show(ui, |ui| {
-                        ui.spacing_mut().item_spacing.y = 2.0;
-                        for e in &entries {
-                            let graph = e.graph.as_ref().map(|(g, max)| (g.as_slice(), *max));
-                            let selected = self.page == e.page;
-                            if sidebar_item(ui, e.icon, &e.label, selected, graph).clicked() {
-                                self.page = e.page.clone();
-                            }
-                        }
-                    });
-            });
-
-        egui::CentralPanel::default()
-            .frame(Frame::new().fill(p.content))
-            .show(ui, |ui| {
-                let (title, subtitle) = self.title(&s);
-                ui.add_space(14.0);
-                let top = ui.cursor().min;
-                header_bar(ui, &title, subtitle.as_deref());
-                let search = match self.page {
-                    Page::Overview => Some(&mut self.overview.search),
-                    Page::Apps => Some(&mut self.apps.search),
-                    Page::Processes => Some(&mut self.procs.search),
-                    _ => None,
-                };
+        shell::content(ui, |ui| {
+            let (title, subtitle) = self.title(&s);
+            let search = match self.page {
+                Page::Overview => Some(&mut self.overview.search),
+                Page::Apps => Some(&mut self.apps.search),
+                Page::Processes => Some(&mut self.procs.search),
+                _ => None,
+            };
+            shell::header(ui, &title, subtitle.as_deref(), |ui, top| {
                 if let Some(search) = search {
                     let at = egui::Rect::from_min_size(
                         top + egui::vec2(12.0, -4.0),
@@ -311,34 +281,22 @@ impl App {
                         search.toggle();
                     }
                 }
-                ui.add_space(6.0);
-                if self.about {
-                    self.about = about(ui);
-                }
-                match &self.page {
-                    Page::Apps => self.apps.show(ui, &s),
-                    Page::Processes => self.procs.show(ui, &s),
-                    Page::Overview => self.overview.show(ui, &s),
-                    Page::Settings => {
-                        egui::ScrollArea::vertical()
-                            .auto_shrink(false)
-                            .show(ui, |ui| {
-                                page_column(ui, |ui| {
-                                    pages::settings::show(ui, &mut self.settings, &s)
-                                });
-                                ui.add_space(24.0);
-                            });
-                    }
-                    page => {
-                        egui::ScrollArea::vertical()
-                            .auto_shrink(false)
-                            .show(ui, |ui| {
-                                page_column(ui, |ui| detail(ui, page, &s, &mut self.launch_error));
-                                ui.add_space(24.0);
-                            });
-                    }
-                }
             });
+            if self.about {
+                self.about = about(ui);
+            }
+            match &self.page {
+                Page::Apps => self.apps.show(ui, &s),
+                Page::Processes => self.procs.show(ui, &s),
+                Page::Overview => self.overview.show(ui, &s),
+                Page::Settings => shell::scrolled_column(ui, |ui| {
+                    pages::settings::show(ui, &mut self.settings, &s)
+                }),
+                page => {
+                    shell::scrolled_column(ui, |ui| detail(ui, page, &s, &mut self.launch_error))
+                }
+            }
+        });
 
         if self.settings.widget {
             desktop_widget::show(ui.ctx(), &mut self.settings, &s);
@@ -363,7 +321,7 @@ impl App {
             self.menubar = self.settings.menu_bar.then(|| MenuBar::new(mtm));
         }
         let state = Arc::clone(&self.state);
-        let s = state.lock().unwrap_or_else(|e| e.into_inner());
+        let s = resources_ui::lock(&state);
         if let Some(mb) = &mut self.menubar {
             let lines: Vec<String> = Stat::ALL
                 .iter()

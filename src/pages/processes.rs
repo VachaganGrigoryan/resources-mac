@@ -52,7 +52,7 @@ impl ProcView {
 
         let count = format!("{} processes", rows.len());
         let menu = MENU.map(|(label, ..)| label);
-        let ask = match action_bar(ui, &count, "End Process", &menu, selected.is_some()) {
+        let ask = match action_bar(ui, &count, None, "End Process", &menu, selected.is_some()) {
             Some(BarAction::Primary) => Some(("End", Sig::Term)),
             Some(BarAction::Menu(i)) => Some((MENU[i].1, MENU[i].2)),
             None => None,

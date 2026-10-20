@@ -13,6 +13,7 @@ use crate::devices::{self, parse_hardware_ports};
 use crate::sample::{
     AppUsage, History, ProcInfo, aggregate_apps, rate, rate_elapsed, system_processes,
 };
+use crate::widgets::pct;
 
 pub const INTERVAL: Duration = Duration::from_secs(1);
 
@@ -301,14 +302,6 @@ fn hardware_ports() -> HashMap<String, String> {
         .unwrap_or_default()
 }
 
-fn pct(used: u64, total: u64) -> f64 {
-    if total == 0 {
-        0.0
-    } else {
-        used as f64 / total as f64 * 100.0
-    }
-}
-
 /// Samples forever on a background thread, publishing a fresh [`State`] each tick.
 pub fn spawn(state: Arc<Mutex<State>>, ctx: egui::Context) {
     std::thread::Builder::new()
@@ -319,7 +312,7 @@ pub fn spawn(state: Arc<Mutex<State>>, ctx: egui::Context) {
             loop {
                 sampler.tick(&mut local);
                 // Swap a finished snapshot in so the UI never waits on a refresh.
-                *state.lock().unwrap_or_else(|e| e.into_inner()) = local.clone();
+                *resources_ui::lock(&state) = local.clone();
                 ctx.request_repaint();
                 std::thread::sleep(INTERVAL);
             }

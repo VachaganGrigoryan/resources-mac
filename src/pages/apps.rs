@@ -132,7 +132,7 @@ impl AppActions {
         let count = format!("{} apps", s.apps.iter().filter(|a| a.app.pid != 0).count());
         let menu = MENU.map(|(label, ..)| label);
         match (
-            action_bar(ui, &count, "End App", &menu, selected.is_some()),
+            action_bar(ui, &count, None, "End App", &menu, selected.is_some()),
             selected,
         ) {
             (Some(BarAction::Primary), Some(a)) => self.0.ask(

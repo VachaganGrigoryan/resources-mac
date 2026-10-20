@@ -1,9 +1,12 @@
-//! Process list filtering/sorting and the confirm dialog shared by the Apps and Processes pages.
+//! Process list filtering, sorting, search and icons shared by the Apps and Processes pages.
 
 use std::collections::HashMap;
 
+pub use resources_ui::confirm::Confirm;
+pub use resources_ui::widgets::{BarAction, action_bar};
+
+use crate::icons;
 use crate::sample::{AppUsage, ProcInfo};
-use crate::{icons, widgets};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SortCol {
@@ -122,56 +125,6 @@ impl Search {
     }
 }
 
-/// What the bottom action bar's buttons asked for.
-pub enum BarAction {
-    /// The red primary button ("End App").
-    Primary,
-    /// An entry from the dropdown, by index.
-    Menu(usize),
-}
-
-/// Bottom bar: item count on the left; info button and a red split button on the right
-/// (upstream's `AdwSplitButton`).
-pub fn action_bar(
-    ui: &mut egui::Ui,
-    count: &str,
-    primary: &str,
-    menu: &[&str],
-    enabled: bool,
-) -> Option<BarAction> {
-    let mut action = None;
-    egui::Panel::bottom(ui.scope_id().with("actions"))
-        .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 10)))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(count).weak());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing.x = 2.0;
-                    ui.add_enabled_ui(enabled, |ui| {
-                        ui.menu_button(icons::CARET_DOWN, |ui| {
-                            for (i, item) in menu.iter().enumerate() {
-                                if ui.button(*item).clicked() {
-                                    action = Some(BarAction::Menu(i));
-                                }
-                            }
-                        })
-                        .response
-                        .on_hover_text("More actions");
-                    });
-                    if widgets::destructive_button(ui, primary, enabled).clicked() {
-                        action = Some(BarAction::Primary);
-                    }
-                    ui.add_space(8.0);
-                    // Upstream opens an information dialog; not built yet.
-                    ui.add_enabled_ui(false, |ui| {
-                        widgets::icon_button(ui, icons::INFO, "Information");
-                    });
-                });
-            });
-        });
-    action
-}
-
 /// Dock icon textures by app pid, shared shape for the Apps and Processes lists.
 #[derive(Default)]
 pub struct IconCache(HashMap<u32, egui::TextureHandle>);
@@ -214,61 +167,6 @@ impl IconCache {
             egui::FontId::proportional(size * 0.57),
             color,
         );
-    }
-}
-
-/// A pending destructive action awaiting confirmation, plus any error from the last attempt.
-pub struct Confirm<A> {
-    pub pending: Option<(A, String)>,
-    pub error: Option<String>,
-}
-
-impl<A> Default for Confirm<A> {
-    fn default() -> Self {
-        Self {
-            pending: None,
-            error: None,
-        }
-    }
-}
-
-impl<A: Copy> Confirm<A> {
-    pub fn ask(&mut self, action: A, question: String) {
-        self.pending = Some((action, question));
-        self.error = None;
-    }
-
-    /// Shows the dialog; returns the action once the user confirms it.
-    pub fn show(&mut self, ui: &egui::Ui, confirm_label: &str) -> Option<A> {
-        let (action, question) = self.pending.clone()?;
-        let mut chosen = None;
-        let resp = egui::Modal::new(egui::Id::unique("confirm")).show(ui.ctx(), |ui| {
-            ui.set_width(320.0);
-            ui.label(&question);
-            if let Some(err) = &self.error {
-                ui.colored_label(ui.visuals().error_fg_color, err);
-            }
-            ui.horizontal(|ui| {
-                if ui.button("Cancel").clicked() {
-                    self.pending = None;
-                }
-                if ui.button(confirm_label).clicked() {
-                    chosen = Some(action);
-                }
-            });
-        });
-        if resp.should_close() {
-            self.pending = None;
-        }
-        chosen
-    }
-
-    /// Records the outcome: success closes the dialog, failure keeps it open with the error.
-    pub fn finish(&mut self, result: Result<(), String>) {
-        match result {
-            Ok(()) => self.pending = None,
-            Err(e) => self.error = Some(e),
-        }
     }
 }
 

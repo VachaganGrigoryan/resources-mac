@@ -7,8 +7,8 @@ use egui::{
     pos2, vec2,
 };
 
-use crate::HISTORY_LEN;
-use crate::sample::History;
+use crate::history::{HISTORY_LEN, History};
+use crate::icons;
 use crate::theme::palette;
 
 /// One graph line and the colour it is drawn in.
@@ -39,14 +39,36 @@ pub fn fmt_rate_highest(bps: f64, hist: &History) -> String {
     format!("{} · Highest: {}", fmt_rate(bps), fmt_rate(hist.max()))
 }
 
-/// `"5.05 GB / 14.47 GB · 35 %"`.
-pub fn fmt_used(used: u64, total: u64) -> String {
-    let pct = if total == 0 {
+/// `used` as a percentage of `total`; 0 when `total` is 0.
+pub fn pct(used: u64, total: u64) -> f64 {
+    if total == 0 {
         0.0
     } else {
         used as f64 / total as f64 * 100.0
-    };
-    format!("{} / {} · {pct:.0} %", fmt_bytes(used), fmt_bytes(total))
+    }
+}
+
+/// `"5.05 GB / 14.47 GB · 35 %"`.
+pub fn fmt_used(used: u64, total: u64) -> String {
+    format!(
+        "{} / {} · {:.0} %",
+        fmt_bytes(used),
+        fmt_bytes(total),
+        pct(used, total)
+    )
+}
+
+/// The first five `names`, one per line after a newline each, then "… and N more".
+pub fn names_preview<S: AsRef<str>>(names: &[S]) -> String {
+    let mut out = String::new();
+    for n in names.iter().take(5) {
+        out.push('\n');
+        out.push_str(n.as_ref());
+    }
+    if names.len() > 5 {
+        out.push_str(&format!("\n… and {} more", names.len() - 5));
+    }
+    out
 }
 
 /// Paints a live graph over the last [`HISTORY_LEN`] seconds, newest on the right, the way
@@ -338,6 +360,66 @@ pub fn destructive_button(ui: &mut Ui, label: &str, enabled: bool) -> Response {
     )
 }
 
+/// What the bottom action bar's buttons asked for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BarAction {
+    /// The red primary button ("End App").
+    Primary,
+    /// An entry from the dropdown, by index.
+    Menu(usize),
+}
+
+/// Bottom bar: item count on the left, a red primary button on the right. With `menu`
+/// entries it becomes upstream's split button (`AdwSplitButton`) plus an info button.
+/// `notice` is an error line above the row.
+pub fn action_bar(
+    ui: &mut Ui,
+    count: &str,
+    notice: Option<&str>,
+    primary: &str,
+    menu: &[&str],
+    enabled: bool,
+) -> Option<BarAction> {
+    let mut action = None;
+    egui::Panel::bottom(ui.scope_id().with("actions"))
+        .frame(Frame::new().inner_margin(egui::Margin::symmetric(16, 10)))
+        .show(ui, |ui| {
+            if let Some(notice) = notice {
+                ui.colored_label(ui.visuals().error_fg_color, notice);
+            }
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(count).weak());
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing.x = 2.0;
+                    if !menu.is_empty() {
+                        ui.add_enabled_ui(enabled, |ui| {
+                            ui.menu_button(icons::CARET_DOWN, |ui| {
+                                for (i, item) in menu.iter().enumerate() {
+                                    if ui.button(*item).clicked() {
+                                        action = Some(BarAction::Menu(i));
+                                    }
+                                }
+                            })
+                            .response
+                            .on_hover_text("More actions");
+                        });
+                    }
+                    if destructive_button(ui, primary, enabled).clicked() {
+                        action = Some(BarAction::Primary);
+                    }
+                    if !menu.is_empty() {
+                        ui.add_space(8.0);
+                        // Upstream opens an information dialog; not built yet.
+                        ui.add_enabled_ui(false, |ui| {
+                            icon_button(ui, icons::INFO, "Information");
+                        });
+                    }
+                });
+            });
+        });
+    action
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,5 +431,18 @@ mod tests {
         assert_eq!(fmt_bytes(1536), "1.54 kB");
         assert_eq!(fmt_bytes(962_560), "962.56 kB");
         assert_eq!(fmt_bytes(3_000_000_000), "3.00 GB");
+    }
+
+    #[test]
+    fn pct_of_zero_total_is_zero() {
+        assert_eq!(pct(5, 0), 0.0);
+        assert_eq!(pct(1, 4), 25.0);
+    }
+
+    #[test]
+    fn names_preview_caps_at_five() {
+        assert_eq!(names_preview(&["a", "b"]), "\na\nb");
+        let many: Vec<String> = (1..=7).map(|i| i.to_string()).collect();
+        assert_eq!(names_preview(&many), "\n1\n2\n3\n4\n5\n… and 2 more");
     }
 }

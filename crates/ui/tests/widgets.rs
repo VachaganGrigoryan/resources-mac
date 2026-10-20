@@ -1,8 +1,8 @@
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use resources_mac::sample::History;
-use resources_mac::theme::{self, color};
-use resources_mac::{icons, widgets};
+use resources_ui::History;
+use resources_ui::theme::{self, color};
+use resources_ui::{icons, widgets};
 
 fn harness<'a>(f: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
     Harness::builder()

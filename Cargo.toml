@@ -1,36 +1,51 @@
 [package]
 name = "resources-mac"
 version = "0.4.0"
-edition = "2024"
-license = "Apache-2.0"
+edition.workspace = true
+license.workspace = true
 description = "A macOS system monitor inspired by GNOME Resources"
-repository = "https://github.com/VachaganGrigoryan/resources-mac"
+repository.workspace = true
 
 [dependencies]
+resources-ui = { path = "crates/ui" }
 anyhow = "1"
 core-foundation = "0.10"
-eframe = { version = "0.37", features = ["persistence"] }
-egui = "0.37"
-egui_extras = "0.37"
+eframe.workspace = true
+egui.workspace = true
+egui_extras.workspace = true
 io-kit-sys = "0.5"
 libc = "0.2"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "objc2-core-foundation", "NSBitmapImageRep", "NSGraphics", "NSGraphicsContext", "NSImage", "NSImageRep", "NSRunningApplication", "NSWorkspace", "NSApplication", "NSButton", "NSCell", "NSControl", "NSFont", "NSFontDescriptor", "NSMenu", "NSMenuItem", "NSResponder", "NSStatusBar", "NSStatusBarButton", "NSStatusItem", "NSView", "NSWindow"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSGeometry", "NSString", "NSThread"] }
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 starship-battery = "0.12"
 sysinfo = "0.39"
 
 [dev-dependencies]
-egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"] }
+resources-ui = { path = "crates/ui", features = ["test-support"] }
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 ron = "0.12"
-tempfile = "3"
+tempfile.workspace = true
 
 [profile.release]
 lto = true
 strip = true
 
 [workspace]
-members = ["crates/disk-sweep"]
+members = ["crates/ui", "crates/disk-sweep"]
 # The website is its own Cargo project (own lockfile, own CI job).
 exclude = ["site"]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/VachaganGrigoryan/resources-mac"
+
+[workspace.dependencies]
+eframe = { version = "0.37", features = ["persistence"] }
+egui = "0.37"
+egui_extras = "0.37"
+egui_kittest = "0.37"
+serde = { version = "1", features = ["derive"] }
+tempfile = "3"
